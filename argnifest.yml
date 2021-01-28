@@ -1,0 +1,50 @@
+meta:
+  prog: "ArgCat Prog"
+  description: "Description"
+  subparser:
+    title: "subparsers_title"
+    description: "valid subcommands"
+    help: "addtional help"
+parsers:
+  main:
+    arguments:
+      -
+        name_or_flags: ["-t", "--test"]
+        nargs: "?"
+        dest: "test"
+        metavar: "TEST"
+        type: "str" # The default type is "str". For this attribute we need to generate the right type from this type string when loading this file.
+        help: "Just for test"
+  init:
+    help: "Initialize a workspaces."
+  info:
+    help: "Show information of the workspace."
+  config:
+    help: "Config workspace."
+    arguments:
+      -
+        name_or_flags: ["-n", "--name"]
+        nargs: "?"
+        dest: "workspace_name"
+        metavar: "WORKSPACE_NAME"
+        type: "str" # The default type is "str". For this attribute we need to generate the right type from this type string when loading this file.
+        help: "The name of the workspace."
+      - 
+        name_or_flags: ["-u", "--username"]
+        nargs: "?"
+        dest: "workspace_user_name"
+        metavar: "WORKSPACE_USER_NAME"
+        type: "str" # The default type is "str". For this attribute we need to generate the right type from this type string when loading this file.
+        help: "The user name of the workspace."
+handlers:
+  #-   
+  #  object: "Workspace" # If object is set, argcat will find the functions from this object(which is an instance of a class)
+  #  links: 
+  #    - main: "main_func"       # parser's name - function's name
+  - 
+    # object: "Workspace" if no object is set, argcat will search the func in global namespace
+    links: 
+      - init: "test1"
+      - info: "test2"
+      - main: "test_main"
+      - config: "test_main"
