@@ -37,14 +37,9 @@ parsers:
         type: "str" # The default type is "str". For this attribute we need to generate the right type from this type string when loading this file.
         help: "The user name of the workspace."
 handlers:
-  #-   
-  #  object: "Workspace" # If object is set, argcat will find the functions from this object(which is an instance of a class)
-  #  links: 
-  #    - main: "main_func"       # parser's name - function's name
-  - 
-    # object: "Workspace" if no object is set, argcat will search the func in global namespace
-    links: 
-      - init: "test1"
-      - info: "test2"
-      - main: "test_main"
-      - config: "test_main"
+  default:  # ArgCat will try to find functions below in __main__
+    init: "test1"
+    info: "test2"
+    main: "test_main"
+  foo:  # Custom class/instance/module has the functions for the parsers. This must be set before handling.
+    config: "func"
