@@ -8,66 +8,74 @@ import yaml
 from pathlib import Path
 from pydoc import locate
 
-class ManifestLoadError(Exception):
-    pass
 
 class ArgCat:
     def __init__(self):
+        # A little bit of my naming convensions:
+        # Member variables' names don't need to contain the type information
+        # string, such as, 'dict', 'path', 'list'
+        # By contrast, all local variables' names must contain the type 
+        # information.
         self._parsers = {}
         self._parser_handler_funcs = {}
         self._parser_arguments = {}
         self._parser_custom_handlers = {}
         self._parser_custom_handler_funcs = {}
-        self._manifest_file_path = None
         self._manifest_data = None
 
-    def _load_manifest(self, arguments_manifest):
-        file_path = str(Path(arguments_manifest).resolve())
-        if os.path.exists(file_path):
-            with open(file_path) as f:
+    def _load_manifest(self, manifest_file_path):
+        print("# Loading manifest file: {}".format(manifest_file_path))
+        resolved_file_path = str(Path(manifest_file_path).resolve())
+        if os.path.exists(resolved_file_path):
+            with open(resolved_file_path) as f:
                 try:
-                    raw_data = yaml.safe_load(f)
+                    self._manifest_data = yaml.safe_load(f)
                 except yaml.YAMLError as exc:
-                    raise ManifestLoadError from exc
-                else:
-                    self._manifest_data = raw_data
+                    self._manifest_data = None
+                    print("  Manifest file with path {} failed to load for exception: {}.".format(resolved_file_path, exc))
         else:
-            print("Manifest file with path {} cannot be found.".format(arguments_manifest))
+            print("  Manifest file with path {} cannot be found.".format(manifest_file_path))
 
     def _create_parsers(self):
+        if self._manifest_data is None:
+            return
+        print("# Creating parsers...")
         meta_dict = self._manifest_data['meta']
-        argument_parser_meta_arguments_dict = dict(meta_dict)
-        del argument_parser_meta_arguments_dict['subparser']
+        main_parser_meta_dict = dict(meta_dict)
+        del main_parser_meta_dict['subparser']
 
         # Main parser
-        main_argument_parser = argparse.ArgumentParser(**argument_parser_meta_arguments_dict)
+        main_parser = argparse.ArgumentParser(**main_parser_meta_dict)
         parsers_dict = self._manifest_data['parsers']
 
         # Sub parsers
-        subparser_meta_dict = meta_dict['subparser']
-        subparser_meta_dict['dest'] = 'sub_parser_name' # reserved 
-        argument_subparsers = main_argument_parser.add_subparsers(**subparser_meta_dict)
+        sub_parser_meta_dict = meta_dict['subparser']
+        sub_parser_meta_dict['dest'] = 'sub_parser_name' # reserved 
+        argument_subparsers = main_parser.add_subparsers(**sub_parser_meta_dict)
 
         for parser_name, parser_dict in parsers_dict.items():
+            # Add new parser
             if parser_name == 'main':
-                argument_parser = main_argument_parser
+                new_parser = main_parser
             else:
-                meta_parser_dict = dict(parser_dict)
-                if 'arguments' in meta_parser_dict:
-                    del meta_parser_dict['arguments']
-                argument_parser = argument_subparsers.add_parser(parser_name, **meta_parser_dict)
-            self._parsers[parser_name] = argument_parser    
-            # Add arguments
-            parser_arguments_dict = parser_dict.get('arguments', [])   # might be None
-            self._parser_arguments[parser_name] = parser_arguments_dict
-            for args_dict in parser_arguments_dict:
-                name_or_flags = args_dict['name_or_flags']
-                meta_args_dict = dict(args_dict)
-                del meta_args_dict['name_or_flags']
-                # from type string to type class
+                parser_meta_dict = dict(parser_dict)
+                if 'arguments' in parser_meta_dict:
+                    del parser_meta_dict['arguments']
+                new_parser = argument_subparsers.add_parser(parser_name, **parser_meta_dict)
+            self._parsers[parser_name] = new_parser    
+            # Add arguments into this new parser
+            parser_arguments_list = parser_dict.get('arguments', [])   # might be None
+            self._parser_arguments[parser_name] = parser_arguments_list
+            for argument_dict in parser_arguments_list:
+                name_or_flags = argument_dict['name_or_flags']
+                argument_meta_dict = dict(argument_dict)
+                del argument_meta_dict['name_or_flags']
+                # from lexcical type to real type
                 # https://stackoverflow.com/questions/11775460/lexical-cast-from-string-to-type
-                meta_args_dict['type'] = locate(meta_args_dict['type'])
-                argument_parser.add_argument(*name_or_flags, **meta_args_dict)
+                argument_meta_dict['type'] = locate(argument_meta_dict['type'])
+                # Add arguments
+                self._parsers[parser_name].add_argument(*name_or_flags, **argument_meta_dict)
+            # Initialize _parser_handler_funcs to set all function slot to None.     
             self._parser_handler_funcs[parser_name] = None
 
         # Handler
@@ -75,8 +83,9 @@ class ArgCat:
         for handler_name, handler_dict in handlers_dict.items():
             # Default handler is __main__
             if handler_name == "default":
-                # find handler funtions in __main__
+                # Find all funtions in __main__
                 main_functions = self._all_functions_in_main()
+                # Find the actual function exists in __main__ of the handler.
                 for handler_parser_name, handler_func_name in handler_dict.items():
                     funcs = [item['func'] for item in main_functions if item['name'] == handler_func_name]
                     if len(funcs) > 0:
@@ -86,61 +95,72 @@ class ArgCat:
                     self._parser_handler_funcs[handler_parser_name] = handler_func
             else:
                 # Custom object handler
-                # This has to be configured before parse() being called
+                # This has to be configured by set_handler() before parse() being called
                 self._parser_custom_handlers[handler_name] = handler_dict
             
         self._list_parser_handler_funcs()
 
     def _list_parser_handler_funcs(self):
-        for k, v in self._parser_handler_funcs.items():
-            if v is None:
-                print("WARNING: No handler function for parser \"{}\"".format(k))
+        print("# Handler functions: ")
+        for parser_name, handler_func in self._parser_handler_funcs.items():
+            if handler_func is None:
+                warning_msg = "- *WARNING* -"
             else:
-                print("Handler function {} for parser {}".format(k, v))
+                warning_msg = ""
+            print("  {} => {}  {}".format(parser_name, handler_func, warning_msg))
 
     def _all_functions_in_main(self):
-        # print(inspect.stack()) 
         # https://stackoverflow.com/questions/1095543/get-name-of-calling-functions-module-in-python
         # https://stackoverflow.com/questions/18907712/python-get-list-of-all-functions-in-current-module-inspecting-current-module
-        functions = [{'name': name, 'func': obj} for name, obj in inspect.getmembers(sys.modules['__main__']) 
+        functions = [{'name': name, 'func': obj} for name, obj in 
+        inspect.getmembers(sys.modules['__main__']) 
         if (inspect.isfunction(obj))]
-        print("-------main functions-------")
-        print(functions)
-        print("----------------------------")
+        #print("-------main functions-------")
+        #print(functions)
+        #print("----------------------------")
         return functions
 
-    def load(self, arguments_manifest):
-        self._load_manifest(arguments_manifest)
+    def load(self, manifest_file_path):
+        self._load_manifest(manifest_file_path)
         self._create_parsers()
-        # print(sys.modules)
 
     def set_handler(self, handler_name, handler):
+        print("# Setting handler: \'{}\' .".format(handler_name))
         handler_dict = self._parser_custom_handlers[handler_name]
         for handler_parser_name, handler_func_name in handler_dict.items():
             self._parser_handler_funcs[handler_parser_name] = getattr(handler, handler_func_name)
-        print("Setting handler {}".format(handler_name))
         self._list_parser_handler_funcs()
 
     def parse(self):
+        # Call the main parser's parse_args() to parse the arguments input.
         args = self._parsers['main'].parse_args()
-        args_dict = dict(vars(args))
-        del args_dict['sub_parser_name']
-        # If current parser is not 'main', remove all arguments from the 
-        # namspace of 'main'. This step is to make sure the arguments input
+        print("# Parsing args: {}".format(args))
+        sub_parser_name = args.sub_parser_name
+        parsed_arguments_dict = dict(vars(args))
+        del parsed_arguments_dict['sub_parser_name']
+        # If the needed parser is not 'main', remove all arguments from the 
+        # namspace of 'main'. By default, all 'main' parser's arguments will
+        # stored in the args namespace even there is no 'main' arguments 
+        # input. So, this step is to make sure the arguments input
         # into the handler function correct.
         if args.sub_parser_name != "main":
-            for ad in self._parser_arguments["main"]:
-                dest = ad.get('dest', None)
+            for argument_dict in self._parser_arguments["main"]:
+                # 'dest' value is the key of the argument in the 
+                # parsed_arguments_dict.
+                dest = argument_dict.get('dest', None)
+                # Remove the argument by key in the parsed_arguments_dict.
                 if dest is not None:
-                    del args_dict[dest]
-        print("args_dict after process: {}".format(args_dict))
+                    del parsed_arguments_dict[dest]
         handler_func = self._parser_handler_funcs.get(args.sub_parser_name, None)
         if handler_func is not None:
             try:
-                handler_func(**args_dict)               
+                result = handler_func(**parsed_arguments_dict)               
             except TypeError:
-                print("Handler function {} can not handle \'{}\' with args: {}".format(handler_func, args.sub_parser_name, args_dict))
-        
+                print("Handler function {} can not handle \'{}\' with args: {}".format(handler_func, sub_parser_name, parsed_arguments_dict))
+            else:
+                return result
+        else:
+            print("{} does not have any handler function.".format(sub_parser_name))
 
 
 
