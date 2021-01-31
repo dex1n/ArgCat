@@ -8,9 +8,63 @@ import yaml
 from pathlib import Path
 from pydoc import locate
 
+class ArgCatParser:
+    def __init__(self, parser, name, arguments, handler_func=None):
+        self._parser = parser
+        self._name = name
+        self._arguments = arguments
+        self._handler_func = handler_func
+    
+    def set_handler_func(self, handler_func):           
+        self._handler_func = handler_func
+
+    def parser_args(self):
+        # Call the main parser's parse_args() to parse the arguments input.
+        args = self._parser.parse_args()
+        print("# Parsing args: {}".format(args))
+        sub_parser_name = args.sub_parser_name
+        parsed_arguments_dict = dict(vars(args))
+        del parsed_arguments_dict['sub_parser_name']
+        # If the sub parser is needed, remove all arguments from the 
+        # namspace belong to the main parser(parent parser). 
+        # By default, all main parser's arguments will
+        # stored in the args namespace even there is no the main arguments 
+        # input. So, this step is to make sure the arguments input
+        # into the handler function correct.
+        if sub_parser_name is not None:
+            for argument_dict in self._arguments:
+                # 'dest' value is the key of the argument in the 
+                # parsed_arguments_dict.
+                dest = argument_dict.get('dest', None)
+                # Remove the argument by key in the parsed_arguments_dict.
+                if dest is not None:
+                    del parsed_arguments_dict[dest]
+        else:
+            sub_parser_name = self._name
+        return sub_parser_name, parsed_arguments_dict
+
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def arguments(self):
+        return self._arguments
+
+    @property
+    def handler_name(self):
+        return self._handler_name
+
+    @property
+    def handler(self):
+        return self._handler
 
 class ArgCat:
     def __init__(self):
+        pass
+
+    def _initialize(self):
         # A little bit of my naming convensions:
         # Member variables' names don't need to contain the type information
         # string, such as, 'dict', 'path', 'list'
@@ -121,15 +175,9 @@ class ArgCat:
         return functions
 
     def load(self, manifest_file_path):
+        self._initialize()
         self._load_manifest(manifest_file_path)
         self._create_parsers()
-
-    def set_handler(self, handler_name, handler):
-        print("# Setting handler: \'{}\' .".format(handler_name))
-        handler_dict = self._parser_custom_handlers[handler_name]
-        for handler_parser_name, handler_func_name in handler_dict.items():
-            self._parser_handler_funcs[handler_parser_name] = getattr(handler, handler_func_name)
-        self._list_parser_handler_funcs()
 
     def parse(self):
         # Call the main parser's parse_args() to parse the arguments input.
@@ -143,7 +191,7 @@ class ArgCat:
         # stored in the args namespace even there is no 'main' arguments 
         # input. So, this step is to make sure the arguments input
         # into the handler function correct.
-        if args.sub_parser_name != "main":
+        if sub_parser_name is not None:
             for argument_dict in self._parser_arguments["main"]:
                 # 'dest' value is the key of the argument in the 
                 # parsed_arguments_dict.
@@ -151,7 +199,9 @@ class ArgCat:
                 # Remove the argument by key in the parsed_arguments_dict.
                 if dest is not None:
                     del parsed_arguments_dict[dest]
-        handler_func = self._parser_handler_funcs.get(args.sub_parser_name, None)
+        else:
+            sub_parser_name = "main"
+        handler_func = self._parser_handler_funcs.get(sub_parser_name, None)
         if handler_func is not None:
             try:
                 result = handler_func(**parsed_arguments_dict)               
@@ -162,5 +212,9 @@ class ArgCat:
         else:
             print("{} does not have any handler function.".format(sub_parser_name))
 
-
-
+    def set_handler(self, handler_name, handler):
+        print("# Setting handler: \'{}\' .".format(handler_name))
+        handler_dict = self._parser_custom_handlers[handler_name]
+        for handler_parser_name, handler_func_name in handler_dict.items():
+            self._parser_handler_funcs[handler_parser_name] = getattr(handler, handler_func_name)
+        self._list_parser_handler_funcs()

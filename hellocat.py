@@ -15,8 +15,8 @@ def test1():
 def test2():
     print("test2")
 
-def test_main():
-    print("test_main")
+def test_main(test):
+    print("test_main {}".format(test))
 
 def main():
     argcat = ArgCat()
