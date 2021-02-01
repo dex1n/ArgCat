@@ -7,6 +7,23 @@ import inspect
 import yaml
 from pathlib import Path
 from pydoc import locate
+from enum import Enum
+
+
+class ArgCatPrintLevel(Enum):
+    NORMAL = ""
+    WARNING = "WARNING: "
+    ERROR = "ERROR: "
+
+class ArgCatPrinter:
+    def print(msg: str, level: ArgCatPrintLevel = ArgCatPrintLevel.NORMAL, indent: int = 0):
+        level_str = level.value
+        if indent <= 0 and level is ArgCatPrintLevel.NORMAL:
+            indent_str = "# "
+        else:
+            indent_str = "  " * indent
+        final_msg = indent_str + level_str + msg
+        print(final_msg)
 
 class ArgCatParser:
     def __init__(self, parser, name, arguments, handler_func=None):
@@ -21,7 +38,7 @@ class ArgCatParser:
     def parse_args(self):
         # Call the main parser's parse_args() to parse the arguments input.
         args = self._parser.parse_args()
-        print("# Parsing args: {}".format(args))
+        ArgCatPrinter.print("Parsing args: {}".format(args))
         sub_parser_name = args.sub_parser_name
         parsed_arguments_dict = dict(vars(args))
         del parsed_arguments_dict['sub_parser_name']
@@ -60,7 +77,10 @@ class ArgCatParser:
         self._handler_func = value
 
 class ArgCat:
-    def _initialize(self):
+    def __init__(self):
+        self._reset()
+
+    def _reset(self):
         # A little bit of my naming convensions:
         # Member variables' names don't need to contain the type information
         # string, such as, 'dict', 'path', 'list'
@@ -71,7 +91,7 @@ class ArgCat:
         self._manifest_data = None
 
     def _load_manifest(self, manifest_file_path):
-        print("# Loading manifest file: {}".format(manifest_file_path))
+        ArgCatPrinter.print("Loading manifest file: {}".format(manifest_file_path))
         resolved_file_path = str(Path(manifest_file_path).resolve())
         if os.path.exists(resolved_file_path):
             with open(resolved_file_path) as f:
@@ -79,14 +99,16 @@ class ArgCat:
                     self._manifest_data = yaml.safe_load(f)
                 except yaml.YAMLError as exc:
                     self._manifest_data = None
-                    print("  Manifest file with path {} failed to load for exception: {}.".format(resolved_file_path, exc))
+                    ArgCatPrinter.print("Manifest file with path {} failed to load for exception: {}."
+                    .format(resolved_file_path, exc), ArgCatPrintLevel.ERROR, 1)
         else:
-            print("  Manifest file with path {} cannot be found.".format(manifest_file_path))
+            ArgCatPrinter.print("Manifest file with path {} cannot be found.".format(manifest_file_path), 
+            level=ArgCatPrintLevel.ERROR, indent=1)
 
     def _create_parsers(self):
         if self._manifest_data is None:
             return
-        print("# Creating parsers...")
+        ArgCatPrinter.print("Creating parsers...")
         meta_dict = self._manifest_data['meta']
         main_parser_meta_dict = dict(meta_dict)
         del main_parser_meta_dict['subparser']
@@ -132,13 +154,13 @@ class ArgCat:
         self._list_parser_handler_funcs()
 
     def _list_parser_handler_funcs(self):
-        print("# Handler functions: ")
+        ArgCatPrinter.print("Handler functions: ")
         for parser_name, parser in self._arg_parsers.items():                
             if parser.handler_func is None:
                 warning_msg = "- *WARNING* -"
             else:
                 warning_msg = ""
-            print("  {} => {}  {}".format(parser_name, parser.handler_func, warning_msg))
+            ArgCatPrinter.print("{} => {}  {}".format(parser_name, parser.handler_func, warning_msg), indent=1)
 
     def _init_default_handler_funcs(self):
         # Default handler is __main__
@@ -160,7 +182,7 @@ class ArgCat:
                 self._arg_parsers[handler_parser_name].handler_func = handler_func
 
     def load(self, manifest_file_path):
-        self._initialize()
+        self._reset()
         self._load_manifest(manifest_file_path)
         self._create_parsers()
 
@@ -173,15 +195,20 @@ class ArgCat:
             try:
                 result = handler_func(**parsed_arguments_dict)               
             except TypeError:
-                print("Handler function {} can not handle \'{}\' with args: {}".format(handler_func, sub_parser_name, parsed_arguments_dict))
+                ArgCatPrinter.print("Handler function {} can not handle \'{}\' with args: {}"
+                .format(handler_func, sub_parser_name, parsed_arguments_dict), level=ArgCatPrintLevel.ERROR, indent=1)
             else:
                 return result
         else:
-            print("{} does not have any handler function.".format(sub_parser_name))
+            ArgCatPrinter.print("{} does not have any handler function.".format(sub_parser_name), level=ArgCatPrintLevel.ERROR, indent=1)
 
     def set_handler(self, handler_name, handler):
-        print("# Setting handler: \'{}\' .".format(handler_name))
-        handler_dict = self._parser_handlers[handler_name]
-        for handler_parser_name, handler_func_name in handler_dict.items():
-            self._arg_parsers[handler_parser_name].handler_func = getattr(handler, handler_func_name)
+        ArgCatPrinter.print("Setting handler: \'{}\' .".format(handler_name))
+        handler_dict = self._parser_handlers.get(handler_name, None)
+        if handler_dict is not None:
+            for handler_parser_name, handler_func_name in handler_dict.items():
+                self._arg_parsers[handler_parser_name].handler_func = getattr(handler, handler_func_name)
+        else:
+            ArgCatPrinter.print("Unknown handler {} to set. Check your manifest file.".format(handler_name), 
+            level=ArgCatPrintLevel.ERROR, indent=1)
         self._list_parser_handler_funcs()
