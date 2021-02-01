@@ -26,11 +26,12 @@ class ArgCatPrinter:
         print(final_msg)
 
 class ArgCatParser:
-    def __init__(self, parser, name, arguments, handler_func=None):
+    def __init__(self, parser, name, arguments, groups=None, handler_func=None):
         self._parser = parser
         self._name = name
         self._arguments = arguments
         self._handler_func = handler_func
+        self._groups = groups
     
     def set_handler_func(self, handler_func):           
         self._handler_func = handler_func
@@ -76,6 +77,10 @@ class ArgCatParser:
     def handler_func(self, value):        
         self._handler_func = value
 
+    @property
+    def groups(self):
+        return self._groups
+        
 class ArgCat:
     def __init__(self):
         self._reset()
@@ -123,14 +128,34 @@ class ArgCat:
         argument_subparsers = main_parser.add_subparsers(**sub_parser_meta_dict)
 
         for parser_name, parser_dict in parsers_dict.items():
+            # Make meta dict
+            parser_meta_dict = dict(parser_dict)
+            if 'arguments' in parser_meta_dict:
+                del parser_meta_dict['arguments']
+            if 'argument_groups' in parser_meta_dict:
+                del parser_meta_dict['argument_groups']
+
             # Add new parser
             if parser_name == 'main':
                 new_parser = main_parser
             else:
-                parser_meta_dict = dict(parser_dict)
-                if 'arguments' in parser_meta_dict:
-                    del parser_meta_dict['arguments']
                 new_parser = argument_subparsers.add_parser(parser_name, **parser_meta_dict)
+            
+            # Add argument groups
+            argument_groups_dict = parser_dict.get('argument_groups', None)
+            if argument_groups_dict is not None:
+                parser_argument_groups_dict = {}
+                for group_name, group_meta_dict in argument_groups_dict.items():
+                    is_mutually_exclusive = group_meta_dict['is_mutually_exclusive']
+                    if is_mutually_exclusive is True:
+                        parser_argument_groups_dict[group_name] = new_parser.add_mutually_exclusive_group()
+                    else:
+                        group_description = group_meta_dict['description']                        
+                        parser_argument_groups_dict[group_name] = new_parser.add_argument_group(group_name, 
+                        group_description)
+            else:
+                parser_argument_groups_dict = None
+
             # Add arguments into this new parser
             parser_arguments_list = parser_dict.get('arguments', [])   # might be None
             for argument_dict in parser_arguments_list:
@@ -140,10 +165,19 @@ class ArgCat:
                 # from lexcical type to real type
                 # https://stackoverflow.com/questions/11775460/lexical-cast-from-string-to-type
                 argument_meta_dict['type'] = locate(argument_meta_dict['type'])
-                # Add arguments
-                new_parser.add_argument(*name_or_flags, **argument_meta_dict)
+                # Add arguments considering we now support group and mutually exclusive group.
+                object_to_add_argument = new_parser
+                if argument_groups_dict is not None:
+                    argument_group = argument_meta_dict.get('group', None)
+                    if argument_group is not None:
+                        created_group = parser_argument_groups_dict.get(argument_group, None)
+                        del argument_meta_dict['group']
+                        if created_group is not None:
+                            object_to_add_argument = created_group
+                
+                object_to_add_argument.add_argument(*name_or_flags, **argument_meta_dict)
             # Add a new ArgCatPartser with None handler_func    
-            self._arg_parsers[parser_name] = ArgCatParser(new_parser, parser_name, parser_arguments_list)
+            self._arg_parsers[parser_name] = ArgCatParser(new_parser, parser_name, parser_arguments_list, argument_groups_dict)
 
         # Handler
         self._parser_handlers = self._manifest_data['handlers']
