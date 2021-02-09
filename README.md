@@ -11,7 +11,7 @@ Have you already been tired of writing argument parsing codes for your python co
 You know, __Life is short, I use Python__...just to write the creative and fun stuffs. But not these:
 
 ```python
-		argument_parser = argparse.ArgumentParser(prog='Cool program name', description='Awesome description')
+	argument_parser = argparse.ArgumentParser(prog='Cool program name', description='Awesome description')
     argument_parser.add_argument("-t", "--test", nargs='?', dest='test', metavar='TEST', type=str, help='Just for test')
 
     argument_subparsers = argument_parser.add_subparsers(dest = "sub_command", title='The subparsers title"', 
