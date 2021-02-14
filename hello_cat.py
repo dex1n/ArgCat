@@ -21,8 +21,8 @@ class Foo:
 def init_handler():
     print("init_handler")
 
-def info_handler():
-    print("info_handler")
+def info_handler(detail):
+    print("info_handler with detail: {}".format(detail))
 
 def main_handler(test):
     print("main_handler {}".format(test))
