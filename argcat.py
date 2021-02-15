@@ -9,7 +9,25 @@ from pathlib import Path
 from pydoc import locate
 from enum import Enum
 from argparse import ArgumentParser, Namespace, _ArgumentGroup, _MutuallyExclusiveGroup, _SubParsersAction
-from typing import List, Dict, Optional, Callable, Tuple, Any, Union
+from typing import ClassVar, List, Dict, Optional, Callable, Tuple, Any, Union
+
+
+class ManifestConstants:
+    SUB_PARSER_NAME: ClassVar[str] = 'sub_parser_name'
+    SUBPARSER: ClassVar[str] = 'subparser'
+    PARSERS: ClassVar[str] = 'parsers'
+    DEST: ClassVar[str] = 'dest'
+    META: ClassVar[str] = 'meta'
+    ARGUMENTS: ClassVar[str] = 'arguments'
+    ARGUMENT_GROUPS: ClassVar[str] = 'argument_groups'
+    MAIN: ClassVar[str] = 'main'
+    IS_MUTUALLY_EXCLUSIVE: ClassVar[str] = 'is_mutually_exclusive'
+    DESCRIPTION: ClassVar[str] = 'description'
+    NAME_OR_FLAGS: ClassVar[str] = 'name_or_flags'
+    TYPE: ClassVar[str] = 'type'
+    GROUP: ClassVar[str] = 'group'
+    HANDLERS: ClassVar[str] = 'handlers'
+    DEFAULT: ClassVar[str] = 'default'
 
 class ArgCatPrintLevel(Enum):
     NORMAL = ""
@@ -44,9 +62,9 @@ class ArgCatParser:
         # Call the main parser's parse_args() to parse the arguments input.
         args: Namespace = self._parser.parse_args()
         ArgCatPrinter.print("Parsing args: {}".format(args))
-        sub_parser_name: str = args.sub_parser_name
         parsed_arguments_dict: Dict = dict(vars(args))
-        del parsed_arguments_dict['sub_parser_name']
+        sub_parser_name: str = parsed_arguments_dict[ManifestConstants.SUB_PARSER_NAME]
+        del parsed_arguments_dict[ManifestConstants.SUB_PARSER_NAME]
         # If the sub parser is needed, remove all arguments from the 
         # namspace belong to the main parser(parent parser). 
         # By default, all main parser's arguments will
@@ -57,7 +75,7 @@ class ArgCatParser:
             for argument_dict in self._arguments:
                 # 'dest' value is the key of the argument in the 
                 # parsed_arguments_dict.
-                dest: str = argument_dict.get('dest', None)
+                dest: str = argument_dict.get(ManifestConstants.DEST, None)
                 # Remove the argument by key in the parsed_arguments_dict.
                 if dest is not None:
                     del parsed_arguments_dict[dest]
@@ -118,66 +136,66 @@ class ArgCat:
         if self._manifest_data is None:
             return
         ArgCatPrinter.print("Creating parsers...")
-        meta_dict: Dict = self._manifest_data['meta']
+        meta_dict: Dict = self._manifest_data[ManifestConstants.META]
         main_parser_meta_dict: Dict = dict(meta_dict)
-        del main_parser_meta_dict['subparser']
+        del main_parser_meta_dict[ManifestConstants.SUBPARSER]
 
         # Main parser
         main_parser: ArgumentParser = argparse.ArgumentParser(**main_parser_meta_dict)
-        parsers_dict: Dict = self._manifest_data['parsers']
+        parsers_dict: Dict = self._manifest_data[ManifestConstants.PARSERS]
 
         # Sub parsers
-        sub_parser_meta_dict: Dict = meta_dict['subparser']
-        sub_parser_meta_dict['dest'] = 'sub_parser_name' # reserved 
+        sub_parser_meta_dict: Dict = meta_dict[ManifestConstants.SUBPARSER]
+        sub_parser_meta_dict[ManifestConstants.DEST] = ManifestConstants.SUB_PARSER_NAME # reserved 
         argument_subparsers: _SubParsersAction = main_parser.add_subparsers(**sub_parser_meta_dict)
 
         for parser_name, parser_dict in parsers_dict.items():
             # Make meta dict
             parser_meta_dict = dict(parser_dict)
-            if 'arguments' in parser_meta_dict:
-                del parser_meta_dict['arguments']
-            if 'argument_groups' in parser_meta_dict:
-                del parser_meta_dict['argument_groups']
+            if ManifestConstants.ARGUMENTS in parser_meta_dict:
+                del parser_meta_dict[ManifestConstants.ARGUMENTS]
+            if ManifestConstants.ARGUMENT_GROUPS in parser_meta_dict:
+                del parser_meta_dict[ManifestConstants.ARGUMENT_GROUPS]
 
             # Add new parser
             new_parser: ArgumentParser
-            if parser_name == 'main':
+            if parser_name == ManifestConstants.MAIN:
                 new_parser = main_parser
             else:
                 new_parser = argument_subparsers.add_parser(parser_name, **parser_meta_dict)
             
             # Add argument groups
-            argument_groups_dict = parser_dict.get('argument_groups', None)
+            argument_groups_dict = parser_dict.get(ManifestConstants.ARGUMENT_GROUPS, None)
             parser_argument_groups_dict: Optional[Dict]
             if argument_groups_dict is not None:
                 parser_argument_groups_dict = {}
                 for group_name, group_meta_dict in argument_groups_dict.items():
-                    is_mutually_exclusive = group_meta_dict['is_mutually_exclusive']
+                    is_mutually_exclusive = group_meta_dict[ManifestConstants.IS_MUTUALLY_EXCLUSIVE]
                     if is_mutually_exclusive is True:
                         parser_argument_groups_dict[group_name] = new_parser.add_mutually_exclusive_group()
                     else:
-                        group_description = group_meta_dict['description']                        
+                        group_description = group_meta_dict[ManifestConstants.DESCRIPTION]                        
                         parser_argument_groups_dict[group_name] = new_parser.add_argument_group(group_name, 
                         group_description)
             else:
                 parser_argument_groups_dict = None
             # Add arguments into this new parser
-            parser_arguments_list = parser_dict.get('arguments', [])   # might be None
+            parser_arguments_list = parser_dict.get(ManifestConstants.ARGUMENTS, [])   # might be None
             for argument_dict in parser_arguments_list:
-                name_or_flags: List = argument_dict['name_or_flags']
+                name_or_flags: List = argument_dict[ManifestConstants.NAME_OR_FLAGS]
                 argument_meta_dict = dict(argument_dict)
-                del argument_meta_dict['name_or_flags']
+                del argument_meta_dict[ManifestConstants.NAME_OR_FLAGS]
                 # from lexcical type to real type
                 # https://stackoverflow.com/questions/11775460/lexical-cast-from-string-to-type
-                argument_meta_dict['type'] = locate(argument_meta_dict['type'])
+                argument_meta_dict[ManifestConstants.TYPE] = locate(argument_meta_dict[ManifestConstants.TYPE])
                 # Add arguments considering we now support group and mutually exclusive group.
                 object_to_add_argument: Union[ArgumentParser, _ArgumentGroup, _MutuallyExclusiveGroup]
                 object_to_add_argument = new_parser
                 if parser_argument_groups_dict is not None:
-                    argument_group = argument_meta_dict.get('group', None)
+                    argument_group = argument_meta_dict.get(ManifestConstants.GROUP, None)
                     if argument_group is not None:
                         created_group = parser_argument_groups_dict.get(argument_group, None)
-                        del argument_meta_dict['group']
+                        del argument_meta_dict[ManifestConstants.GROUP]
                         if created_group is not None:
                             object_to_add_argument = created_group
                 
@@ -187,7 +205,7 @@ class ArgCat:
             argument_groups_dict)
 
         # Handler
-        self._parser_handlers = self._manifest_data['handlers']
+        self._parser_handlers = self._manifest_data[ManifestConstants.HANDLERS]
         self._init_default_handler_funcs()
         # Except for 'default' handler, there are custom handlers.
         # These handlers need to be configured by set_handler() before parse() being called.     
@@ -206,7 +224,7 @@ class ArgCat:
 
     def _init_default_handler_funcs(self) -> None:
         # Default handler is __main__
-        default_handler_dict: Dict = self._parser_handlers['default']
+        default_handler_dict: Dict = self._parser_handlers[ManifestConstants.DEFAULT]
         if default_handler_dict is not None:                
             # Find all funtions in __main__
             # https://stackoverflow.com/questions/1095543/get-name-of-calling-functions-module-in-python
@@ -230,7 +248,7 @@ class ArgCat:
 
     def parse(self) -> Any:
         # Call the main parser's parse_args() to parse the arguments input.
-        sub_parser_name, parsed_arguments_dict = self._arg_parsers['main'].parse_args()
+        sub_parser_name, parsed_arguments_dict = self._arg_parsers[ManifestConstants.MAIN].parse_args()
         parser = self._arg_parsers[sub_parser_name]
         handler_func = parser.handler_func
         if handler_func is not None:
