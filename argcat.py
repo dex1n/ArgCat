@@ -7,7 +7,7 @@ import inspect
 import yaml
 from pathlib import Path
 from pydoc import locate
-from enum import Enum
+from enum import Enum, unique
 from argparse import ArgumentParser, Namespace, _ArgumentGroup, _MutuallyExclusiveGroup, _SubParsersAction
 from typing import ClassVar, List, Dict, Optional, Callable, Tuple, Any, Union
 
@@ -30,15 +30,26 @@ class ManifestConstants:
     HANDLERS = 'handlers'
     DEFAULT = 'default'
 
+@unique
 class ArgCatPrintLevel(Enum):
-    NORMAL = ""
-    WARNING = "WARNING: "
-    ERROR = "ERROR: "
+    NORMAL = 0
+    WARNING = 1
+    ERROR = 2
+    def __str__(self):
+        if self.value == 0:
+            return ""
+        elif self.value == 1:
+            return "WARNING: "
+        elif self.value == 2:
+            return "ERROR: "
 
 class ArgCatPrinter:
+    filter_level: ClassVar[ArgCatPrintLevel] = ArgCatPrintLevel.NORMAL
     @staticmethod
     def print(msg: str, level: ArgCatPrintLevel = ArgCatPrintLevel.NORMAL, indent: int = 0) -> None:
-        level_str: str = level.value
+        if level.value < ArgCatPrinter.filter_level.value:
+            return
+        level_str: str = str(level)
         indent_str: str
         if indent <= 0 and level is ArgCatPrintLevel.NORMAL:
             indent_str = "# "
