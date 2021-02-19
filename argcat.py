@@ -11,23 +11,24 @@ from enum import Enum
 from argparse import ArgumentParser, Namespace, _ArgumentGroup, _MutuallyExclusiveGroup, _SubParsersAction
 from typing import ClassVar, List, Dict, Optional, Callable, Tuple, Any, Union
 
-
+# May not be the best solution for the constants, but it's fine for now.
+# And we don't need ClassVar[str] here because I think all constants' type are pretty clear.
 class ManifestConstants:
-    SUB_PARSER_NAME: ClassVar[str] = 'sub_parser_name'
-    SUBPARSER: ClassVar[str] = 'subparser'
-    PARSERS: ClassVar[str] = 'parsers'
-    DEST: ClassVar[str] = 'dest'
-    META: ClassVar[str] = 'meta'
-    ARGUMENTS: ClassVar[str] = 'arguments'
-    ARGUMENT_GROUPS: ClassVar[str] = 'argument_groups'
-    MAIN: ClassVar[str] = 'main'
-    IS_MUTUALLY_EXCLUSIVE: ClassVar[str] = 'is_mutually_exclusive'
-    DESCRIPTION: ClassVar[str] = 'description'
-    NAME_OR_FLAGS: ClassVar[str] = 'name_or_flags'
-    TYPE: ClassVar[str] = 'type'
-    GROUP: ClassVar[str] = 'group'
-    HANDLERS: ClassVar[str] = 'handlers'
-    DEFAULT: ClassVar[str] = 'default'
+    SUB_PARSER_NAME = 'sub_parser_name'
+    SUBPARSER = 'subparser'
+    PARSERS = 'parsers'
+    DEST = 'dest'
+    META = 'meta'
+    ARGUMENTS = 'arguments'
+    ARGUMENT_GROUPS = 'argument_groups'
+    MAIN = 'main'
+    IS_MUTUALLY_EXCLUSIVE = 'is_mutually_exclusive'
+    DESCRIPTION = 'description'
+    NAME_OR_FLAGS= 'name_or_flags'
+    TYPE = 'type'
+    GROUP = 'group'
+    HANDLERS = 'handlers'
+    DEFAULT = 'default'
 
 class ArgCatPrintLevel(Enum):
     NORMAL = ""
