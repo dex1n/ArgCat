@@ -236,7 +236,7 @@ class ArgCat:
     def _list_parser_handler_funcs(self) -> None:
         ArgCatPrinter.print("Handler functions: ")
         for parser_name, parser in self._arg_parsers.items():
-            ArgCatPrinter.print("{} => {}  {}".format(parser_name, parser.handler_func), indent=1)
+            ArgCatPrinter.print("{} => {}".format(parser_name, parser.handler_func), indent=1)
 
     def _init_default_handler_funcs(self) -> None:
         # Default handler is __main__
