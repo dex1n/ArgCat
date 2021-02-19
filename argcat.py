@@ -166,6 +166,8 @@ class ArgCat:
         argument_subparsers: _SubParsersAction = main_parser.add_subparsers(**sub_parser_meta_dict)
 
         for parser_name, parser_dict in parsers_dict.items():
+            if parser_dict is None or len(parser_dict) == 0:
+                continue
             # Make meta dict
             parser_meta_dict = dict(parser_dict)
             if ManifestConstants.ARGUMENTS in parser_meta_dict:
@@ -217,7 +219,10 @@ class ArgCat:
                 
                 object_to_add_argument.add_argument(*name_or_flags, **argument_meta_dict)
             # Add a new ArgCatPartser with None handler_func    
-            self._arg_parsers[parser_name] = ArgCatParser(new_parser, parser_name, parser_arguments_list, 
+            self._arg_parsers[parser_name] = ArgCatParser(new_parser, parser_name, parser_arguments_list)
+
+        if ManifestConstants.MAIN not in self._arg_parsers:
+            self._arg_parsers[ManifestConstants.MAIN] = ArgCatParser(main_parser, ManifestConstants.MAIN, [], 
             argument_groups_dict)
 
         # Handler
@@ -240,7 +245,7 @@ class ArgCat:
 
     def _init_default_handler_funcs(self) -> None:
         # Default handler is __main__
-        default_handler_dict: Dict = self._parser_handlers[ManifestConstants.DEFAULT]
+        default_handler_dict: Dict = self._parser_handlers.get(ManifestConstants.DEFAULT, None)
         if default_handler_dict is not None:                
             # Find all funtions in __main__
             # https://stackoverflow.com/questions/1095543/get-name-of-calling-functions-module-in-python

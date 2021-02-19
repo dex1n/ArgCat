@@ -11,34 +11,34 @@ Have you already been tired of writing argument parsing codes for your python co
 You know, __Life is short, I use Python__...just to write the creative and fun stuffs. But not these:
 
 ```python
-	argument_parser = argparse.ArgumentParser(prog='Cool program name', description='Awesome description')
-    argument_parser.add_argument("-t", "--test", nargs='?', dest='test', metavar='TEST', type=str, help='Just for test')
+argument_parser = argparse.ArgumentParser(prog='Cool program name', description='Awesome description')
+argument_parser.add_argument("-t", "--test", nargs='?', dest='test', metavar='TEST', type=str, help='Just for test')
 
-    argument_subparsers = argument_parser.add_subparsers(dest = "sub_command", title='The subparsers title"', 
+argument_subparsers = argument_parser.add_subparsers(dest = "sub_command", title='The subparsers title"', 
     description="The subparsers description", help='The subparsers help')
     
-    init_parser = argument_subparsers.add_parser('init', help="Initialize something.")
+init_parser = argument_subparsers.add_parser('init', help="Initialize something.")
 
-    info_parser = argument_subparsers.add_parser('info', help="Show information of something.")
-    info_parser.add_argument("-d", "--detail", nargs='?', dest='detail', metavar='DETAIL', type=str, 
+info_parser = argument_subparsers.add_parser('info', help="Show information of something.")
+info_parser.add_argument("-d", "--detail", nargs='?', dest='detail', metavar='DETAIL', type=str, 
     help='The detail of the information')
 
-    config_parser = argument_subparsers.add_parser('config', help="Config something.")
-    config_arg_group = config_parser.add_mutually_exclusive_group()
-    config_arg_group.add_argument("-n", "--name", nargs='?', dest='name', metavar='NAME', type=str, help='The name.')
-    config_arg_group.add_argument("-u", "--username", nargs='?', dest='user_name', metavar='USER_NAME', type=str, help='The user name.')
+config_parser = argument_subparsers.add_parser('config', help="Config something.")
+config_arg_group = config_parser.add_mutually_exclusive_group()
+config_arg_group.add_argument("-n", "--name", nargs='?', dest='name', metavar='NAME', type=str, help='The name.')
+config_arg_group.add_argument("-u", "--username", nargs='?', dest='user_name', metavar='USER_NAME', type=str, help='The user name.')
 
-    args = argument_parser.parse_args()
-    sub_command = args.sub_command
-    if sub_command == "init":
-        init_handler()
-    elif sub_command == "info":
-        info_handler()
-    elif sub_command == "config":
-        foo = Foo()
-        foo.config_handler(args.name, args.user_name)
-    elif sub_command is None:
-        main_handler(args.test)
+args = argument_parser.parse_args()
+sub_command = args.sub_command
+if sub_command == "init":
+    init_handler()
+elif sub_command == "info":
+    info_handler()
+elif sub_command == "config":
+    foo = Foo()
+    foo.config_handler(args.name, args.user_name)
+elif sub_command is None:
+    main_handler(args.test)
 ```
 
 Codes above really destroy every happy and exciting things and steal the most valuable thing from me: TIME!
