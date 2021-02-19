@@ -45,16 +45,19 @@ class ArgCatPrintLevel(Enum):
 
 class ArgCatPrinter:
     filter_level: ClassVar[ArgCatPrintLevel] = ArgCatPrintLevel.NORMAL
-    @staticmethod
-    def print(msg: str, level: ArgCatPrintLevel = ArgCatPrintLevel.NORMAL, indent: int = 0) -> None:
-        if level.value < ArgCatPrinter.filter_level.value:
+    log_prefix: ClassVar[str] = "<ArgCat>"
+    indent_blank_str: ClassVar[str] = " " * 2
+
+    @classmethod
+    def print(cls, msg: str, level: ArgCatPrintLevel = ArgCatPrintLevel.NORMAL, indent: int = 0) -> None:
+        if level.value < cls.filter_level.value:
             return
         level_str: str = str(level)
         indent_str: str
         if indent <= 0 and level is ArgCatPrintLevel.NORMAL:
-            indent_str = "# "
+            indent_str = cls.log_prefix + " "
         else:
-            indent_str = "  " * indent
+            indent_str = cls.indent_blank_str * indent
         final_msg: str = indent_str + level_str + msg
         print(final_msg)
 
@@ -114,9 +117,10 @@ class ArgCatParser:
     @property
     def groups(self) -> Optional[Dict]:
         return self._groups
-        
+
 class ArgCat:
     def __init__(self):
+        ArgCatPrinter.print("Your cute argument parsing helper. >v<")
         self._reset()
 
     def _reset(self) -> None:
