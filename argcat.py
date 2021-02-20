@@ -76,7 +76,7 @@ class ArgCatParser:
     def parse_args(self) -> Tuple[str, Dict]:
         # Call the main parser's parse_args() to parse the arguments input.
         args: Namespace = self._parser.parse_args()
-        ArgCatPrinter.print("Parsing args: {}".format(args))
+        ArgCatPrinter.print("Parsed args to: {}".format(args))
         parsed_arguments_dict: Dict = dict(vars(args))
         sub_parser_name: str = parsed_arguments_dict[ManifestConstants.SUB_PARSER_NAME]
         del parsed_arguments_dict[ManifestConstants.SUB_PARSER_NAME]
@@ -134,7 +134,7 @@ class ArgCat:
         self._manifest_data: Optional[Dict] = None
 
     def _load_manifest(self, manifest_file_path: str) -> None:
-        ArgCatPrinter.print("Loading manifest file: {}".format(manifest_file_path))
+        ArgCatPrinter.print("Loading manifest file: {} ...".format(manifest_file_path))
         resolved_file_path: str = str(Path(manifest_file_path).resolve())
         if os.path.exists(resolved_file_path):
             with open(resolved_file_path) as f:
@@ -151,7 +151,7 @@ class ArgCat:
     def _create_parsers(self) -> None:
         if self._manifest_data is None:
             return
-        ArgCatPrinter.print("Creating parsers...")
+        ArgCatPrinter.print("Creating parsers ...")
         meta_dict: Dict = self._manifest_data[ManifestConstants.META]
         main_parser_meta_dict: Dict = dict(meta_dict)
         del main_parser_meta_dict[ManifestConstants.SUBPARSER]
@@ -230,13 +230,6 @@ class ArgCat:
         self._init_default_handler_funcs()
         # Except for 'default' handler, there are custom handlers.
         # These handlers need to be configured by set_handler() before parse() being called.     
-            
-        self._list_parser_handler_funcs()
-
-    def _list_parser_handler_funcs(self) -> None:
-        ArgCatPrinter.print("Handler functions: ")
-        for parser_name, parser in self._arg_parsers.items():
-            ArgCatPrinter.print("{} => {}".format(parser_name, parser.handler_func), indent=1)
 
     def _init_default_handler_funcs(self) -> None:
         # Default handler is __main__
@@ -261,6 +254,7 @@ class ArgCat:
         self._reset()
         self._load_manifest(manifest_file_path)
         self._create_parsers()
+        ArgCatPrinter.print("Loading DONE. Use print_xx functions for more information.")
 
     def parse(self) -> Any:
         # Call the main parser's parse_args() to parse the arguments input.
@@ -281,7 +275,7 @@ class ArgCat:
         return None
 
     def set_handler(self, handler_name: str, handler: Any) -> None:
-        ArgCatPrinter.print("Setting handler: \'{}\' .".format(handler_name))
+        ArgCatPrinter.print("Setting handler: \'{}\' ...".format(handler_name))
         handler_dict: Dict = self._parser_handlers.get(handler_name, None)
         if handler_dict is not None:
             for handler_parser_name, handler_func_name in handler_dict.items():
@@ -289,4 +283,18 @@ class ArgCat:
         else:
             ArgCatPrinter.print("Unknown handler {} to set. Check your manifest file.".format(handler_name), 
             level=ArgCatPrintLevel.ERROR, indent=1)
-        self._list_parser_handler_funcs()
+
+    def print_parser_handlers(self) -> None:
+        ArgCatPrinter.print("Handler functions: ")
+        for parser_name, parser in self._arg_parsers.items():
+            func_sig: Optional[inspect.Signature] = None
+            if parser.handler_func is not None:
+                func_sig = inspect.signature(parser.handler_func)
+            ArgCatPrinter.print("{} => {} : {}".format(parser_name, parser.handler_func, func_sig), indent=1)
+    
+    def print_parsers(self) -> None:
+        ArgCatPrinter.print("Parsers: ")
+        for parser_name, parser in self._arg_parsers.items():
+            ArgCatPrinter.print("{}:".format(parser_name), indent=1)
+            for arg in parser.arguments:
+                ArgCatPrinter.print("{} -> {}".format(arg['name_or_flags'], arg.get('dest', None)), indent=2)

@@ -30,6 +30,8 @@ def main_handler(test):
 def main():
     argcat = ArgCat()
     argcat.load("hello_cat.yml")
+    argcat.print_parsers()
+    argcat.print_parser_handlers()
     foo = Foo()
     foo._value = "new value"
     argcat.set_handler('foo', foo)
