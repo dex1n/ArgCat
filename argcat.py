@@ -205,7 +205,9 @@ class ArgCat:
                 del argument_meta_dict[ManifestConstants.NAME_OR_FLAGS]
                 # from lexcical type to real type
                 # https://stackoverflow.com/questions/11775460/lexical-cast-from-string-to-type
-                argument_meta_dict[ManifestConstants.TYPE] = locate(argument_meta_dict[ManifestConstants.TYPE])
+                lexical_type: str = argument_meta_dict.get(ManifestConstants.TYPE, None)
+                if lexical_type is not None:
+                    argument_meta_dict[ManifestConstants.TYPE] = locate(lexical_type)
                 # Add arguments considering we now support group and mutually exclusive group.
                 object_to_add_argument: Union[ArgumentParser, _ArgumentGroup, _MutuallyExclusiveGroup]
                 object_to_add_argument = new_parser
