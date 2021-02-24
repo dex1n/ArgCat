@@ -21,7 +21,6 @@ parsers:  # All parsers including the "main" parser below, which is the very fir
     help: "Show information of something."
     arguments:
       -
-        name_or_flags: ["-d", "--detail"]
         nargs: "?"
         dest: "detail"
         metavar: "DETAIL"

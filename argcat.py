@@ -24,7 +24,7 @@ class ManifestConstants:
     MAIN = 'main'
     IS_MUTUALLY_EXCLUSIVE = 'is_mutually_exclusive'
     DESCRIPTION = 'description'
-    NAME_OR_FLAGS= 'name_or_flags'
+    NAME_OR_FLAGS = 'name_or_flags'
     TYPE = 'type'
     GROUP = 'group'
     HANDLERS = 'handlers'
@@ -200,9 +200,8 @@ class ArgCat:
             # Add arguments into this new parser
             parser_arguments_list = parser_dict.get(ManifestConstants.ARGUMENTS, [])   # might be None
             for argument_dict in parser_arguments_list:
-                name_or_flags: List = argument_dict[ManifestConstants.NAME_OR_FLAGS]
+                name_or_flags: Optional[List] = argument_dict.get(ManifestConstants.NAME_OR_FLAGS, None)
                 argument_meta_dict = dict(argument_dict)
-                del argument_meta_dict[ManifestConstants.NAME_OR_FLAGS]
                 # from lexcical type to real type
                 # https://stackoverflow.com/questions/11775460/lexical-cast-from-string-to-type
                 lexical_type: str = argument_meta_dict.get(ManifestConstants.TYPE, None)
@@ -218,8 +217,11 @@ class ArgCat:
                         del argument_meta_dict[ManifestConstants.GROUP]
                         if created_group is not None:
                             object_to_add_argument = created_group
-                
-                object_to_add_argument.add_argument(*name_or_flags, **argument_meta_dict)
+                if name_or_flags:
+                    del argument_meta_dict[ManifestConstants.NAME_OR_FLAGS]
+                    object_to_add_argument.add_argument(*name_or_flags, **argument_meta_dict)
+                else: # Suppose it's str by default. If it's not, let it crash.
+                    object_to_add_argument.add_argument(**argument_meta_dict)
             # Add a new ArgCatPartser with None handler_func    
             self._arg_parsers[parser_name] = ArgCatParser(new_parser, parser_name, parser_arguments_list)
 
@@ -299,4 +301,6 @@ class ArgCat:
         for parser_name, parser in self._arg_parsers.items():
             ArgCatPrinter.print("{}:".format(parser_name), indent=1)
             for arg in parser.arguments:
-                ArgCatPrinter.print("{} -> {}".format(arg['name_or_flags'], arg.get('dest', None)), indent=2)
+                dest = arg.get(ManifestConstants.DEST, None)
+                name = arg.get(ManifestConstants.NAME_OR_FLAGS, dest)
+                ArgCatPrinter.print("{} -> {}".format(name, dest), indent=2)
