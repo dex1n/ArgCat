@@ -8,8 +8,8 @@ meta: # Include all essential configurations used for creating a new ArgumentPar
 parsers:  # All parsers including the "main" parser below, which is the very first parser created by argparse.ArgumentParser()
   main:
     arguments:
+      # Declare a positional argument for the main parser.
       -
-        name_or_flags: ["-t", "--test"]
         nargs: "?"
         dest: "test"
         metavar: "TEST"

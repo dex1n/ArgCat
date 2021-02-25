@@ -163,7 +163,7 @@ class ArgCat:
         # Sub parsers
         sub_parser_meta_dict: Dict = meta_dict[ManifestConstants.SUBPARSER]
         sub_parser_meta_dict[ManifestConstants.DEST] = ManifestConstants.SUB_PARSER_NAME # reserved 
-        argument_subparsers: _SubParsersAction = main_parser.add_subparsers(**sub_parser_meta_dict)
+        argument_subparsers: Optional[_SubParsersAction] = None
 
         for parser_name, parser_dict in parsers_dict.items():
             if parser_dict is None or len(parser_dict) == 0:
@@ -180,6 +180,14 @@ class ArgCat:
             if parser_name == ManifestConstants.MAIN:
                 new_parser = main_parser
             else:
+                # Create the subparsers when need.
+                # This is to make sure: if main arguments are declared in the yaml before the subparsers' arguments,
+                # they will be added and parsed before the subparsers' arguments. This is very important and useful
+                # when there is any positional argument before the subparsers' ones. 
+                # More details can be found from:
+                # https://stackoverflow.com/questions/8668519/python-argparse-positional-arguments-and-sub-commands?rq=1
+                if argument_subparsers is None:
+                    argument_subparsers: _SubParsersAction = main_parser.add_subparsers(**sub_parser_meta_dict)
                 new_parser = argument_subparsers.add_parser(parser_name, **parser_meta_dict)
             
             # Add argument groups
