@@ -88,7 +88,7 @@ class ArgCatParser:
         # By default, all main parser's arguments will
         # stored in the args namespace even there is no the main arguments 
         # input. So, this step is to make sure the arguments input
-        # into the handler function correct.
+        # into the handler function correctly.
         if sub_parser_name is not None:
             for argument_dict in self._arguments:
                 # 'dest' value is the key of the argument in the 
