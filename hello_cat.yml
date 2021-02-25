@@ -10,6 +10,11 @@ parsers:  # All parsers including the "main" parser below, which is the very fir
     arguments:
       # Declare a positional argument for the main parser.
       -
+        # Mainly used for main arguments. If this is set to True, the argument will be filtered out before being passed
+        # into subparser's handler function. Default value is False.
+        # In below case, the argument test will not be passed into any subparser's handler function even this test 
+        # argument has a valid value instead of None.
+        ignored_by_subparser: True
         nargs: "?"
         dest: "test"
         metavar: "TEST"

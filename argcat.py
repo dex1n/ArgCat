@@ -29,6 +29,9 @@ class ManifestConstants:
     GROUP = 'group'
     HANDLERS = 'handlers'
     DEFAULT = 'default'
+    # Mainly used for main arguments. If this is set to True, the argument will be filtered out before being passed
+    # into subparser's handler function. Default value is False.
+    IGNORED_BY_SUBPARSER = 'ignored_by_subparser'   
 
 @unique
 class ArgCatPrintLevel(Enum):
@@ -81,7 +84,7 @@ class ArgCatParser:
         sub_parser_name: str = parsed_arguments_dict[ManifestConstants.SUB_PARSER_NAME]
         del parsed_arguments_dict[ManifestConstants.SUB_PARSER_NAME]
         # If the sub parser is needed, remove all arguments from the 
-        # namspace belong to the main parser(parent parser). 
+        # namspace belong to the main parser(parent parser) marked IGNORED_BY_SUBPARSER True. 
         # By default, all main parser's arguments will
         # stored in the args namespace even there is no the main arguments 
         # input. So, this step is to make sure the arguments input
@@ -91,8 +94,9 @@ class ArgCatParser:
                 # 'dest' value is the key of the argument in the 
                 # parsed_arguments_dict.
                 dest: str = argument_dict.get(ManifestConstants.DEST, None)
+                should_be_ignored: bool = argument_dict.get(ManifestConstants.IGNORED_BY_SUBPARSER, False)
                 # Remove the argument by key in the parsed_arguments_dict.
-                if dest is not None:
+                if dest is not None and should_be_ignored:
                     del parsed_arguments_dict[dest]
         else:
             sub_parser_name = self._name
@@ -210,6 +214,8 @@ class ArgCat:
             for argument_dict in parser_arguments_list:
                 name_or_flags: Optional[List] = argument_dict.get(ManifestConstants.NAME_OR_FLAGS, None)
                 argument_meta_dict = dict(argument_dict)
+                if ManifestConstants.IGNORED_BY_SUBPARSER in argument_meta_dict:
+                    del argument_meta_dict[ManifestConstants.IGNORED_BY_SUBPARSER]
                 # from lexcical type to real type
                 # https://stackoverflow.com/questions/11775460/lexical-cast-from-string-to-type
                 lexical_type: str = argument_meta_dict.get(ManifestConstants.TYPE, None)
@@ -275,10 +281,14 @@ class ArgCat:
         handler_func = parser.handler_func
         if handler_func is not None:
             try:
+                ArgCatPrinter.print("Handler function {} is handling \'{}\' with args: {}"
+                .format(handler_func, sub_parser_name, parsed_arguments_dict))
                 result = handler_func(**parsed_arguments_dict)               
             except TypeError:
-                ArgCatPrinter.print("Handler function {} can not handle \'{}\' with args: {}"
-                .format(handler_func, sub_parser_name, parsed_arguments_dict), level=ArgCatPrintLevel.ERROR, indent=1)
+                func_sig = inspect.signature(parser.handler_func)
+                input_sig = str(tuple(parsed_arguments_dict)).replace('\'','')
+                error_msg = "Handling mismatched arguments. Required: {} but {} given.".format(func_sig, input_sig)
+                ArgCatPrinter.print(error_msg, level=ArgCatPrintLevel.ERROR, indent=1)
             else:
                 return result
         else:
