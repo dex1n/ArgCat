@@ -283,11 +283,12 @@ class ArgCat:
             try:
                 ArgCatPrinter.print("Handler function {} is handling \'{}\' with args: {}"
                 .format(handler_func, sub_parser_name, parsed_arguments_dict))
-                result = handler_func(**parsed_arguments_dict)               
-            except TypeError:
+                result = handler_func(**parsed_arguments_dict)
+            except TypeError as exc:
                 func_sig = inspect.signature(parser.handler_func)
                 input_sig = str(tuple(parsed_arguments_dict)).replace('\'','')
-                error_msg = "Handling mismatched arguments. Required: {} but {} given.".format(func_sig, input_sig)
+                error_msg = "Handling mismatched arguments. Required: {} but {} given, which causes Exception: {}"\
+                    .format(func_sig, input_sig, exc)
                 ArgCatPrinter.print(error_msg, level=ArgCatPrintLevel.ERROR, indent=1)
             else:
                 return result
