@@ -284,11 +284,14 @@ class ArgCat:
                 ArgCatPrinter.print("Handler function {} is handling \'{}\' with args: {}"
                 .format(handler_func, sub_parser_name, parsed_arguments_dict))
                 result = handler_func(**parsed_arguments_dict)
-            except TypeError as exc:
+            # Catch all exception to print the actual exception raised in the handler function besides
+            # TypeError. If we are only capturing TypeError, the actual error would be "covered" by the TypeError, which
+            # means all error would be raised as TypeError. This could be very confusing.
+            except Exception as exc:
                 func_sig = inspect.signature(parser.handler_func)
                 input_sig = str(tuple(parsed_arguments_dict)).replace('\'','')
-                error_msg = "Handling mismatched arguments. Required: {} but {} given, which causes Exception: {}"\
-                    .format(func_sig, input_sig, exc)
+                error_msg = "Handling function Exception: \"{}\", with function sig: {} and received parameters: {}."\
+                    .format(exc, func_sig, input_sig)
                 ArgCatPrinter.print(error_msg, level=ArgCatPrintLevel.ERROR, indent=1)
             else:
                 return result
