@@ -28,7 +28,7 @@ def main_handler(test):
     print("main_handler {}".format(test))
 
 def main():
-    argcat = ArgCat()
+    argcat = ArgCat(chatter=True)
     argcat.load("hello_cat.yml")
     argcat.print_parsers()
     argcat.print_parser_handlers()

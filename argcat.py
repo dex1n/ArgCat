@@ -35,29 +35,31 @@ class ManifestConstants:
 
 @unique
 class ArgCatPrintLevel(Enum):
-    NORMAL = 0
-    WARNING = 1
-    ERROR = 2
+    # Print needed by user, for example, in print_parser_handlers()
+    VERBOSE = 0
+    IF_NECESSARY = 1
+    WARNING = 2
+    ERROR = 3
     def __str__(self):
-        if self.value == 0:
+        if self.value in [0, 1]:
             return ""
-        elif self.value == 1:
-            return "WARNING: "
         elif self.value == 2:
+            return "WARNING: "
+        elif self.value == 3:
             return "ERROR: "
 
 class ArgCatPrinter:
-    filter_level: ClassVar[ArgCatPrintLevel] = ArgCatPrintLevel.NORMAL
+    filter_level: ClassVar[ArgCatPrintLevel] = ArgCatPrintLevel.VERBOSE
     log_prefix: ClassVar[str] = "<ArgCat>"
     indent_blank_str: ClassVar[str] = " " * 2
 
     @classmethod
-    def print(cls, msg: str, level: ArgCatPrintLevel = ArgCatPrintLevel.NORMAL, indent: int = 0) -> None:
+    def print(cls, msg: str, *, level: ArgCatPrintLevel = ArgCatPrintLevel.VERBOSE, indent: int = 0) -> None:
         if level.value < cls.filter_level.value:
             return
         level_str: str = str(level)
         indent_str: str
-        if indent <= 0 and level is ArgCatPrintLevel.NORMAL:
+        if indent <= 0 and (level is ArgCatPrintLevel.VERBOSE or level is ArgCatPrintLevel.IF_NECESSARY):
             indent_str = cls.log_prefix + " "
         else:
             indent_str = cls.indent_blank_str * indent
@@ -123,9 +125,22 @@ class ArgCatParser:
         return self._groups
 
 class ArgCat:
-    def __init__(self):
+    def __init__(self, chatter=False):
+        # Whatever happens, let this print.
         ArgCatPrinter.print("Your cute argument parsing helper. >v<")
+        self.chatter = chatter
         self._reset()
+
+    @property
+    def chatter(self) -> bool:
+        return ArgCatPrinter.filter_level is ArgCatPrintLevel.VERBOSE
+
+    @chatter.setter
+    def chatter(self, value: bool) -> None:
+        if value is True:
+            ArgCatPrinter.filter_level = ArgCatPrintLevel.VERBOSE
+        else:
+            ArgCatPrinter.filter_level = ArgCatPrintLevel.IF_NECESSARY
 
     def _reset(self) -> None:
         # A little bit of my naming convensions:
@@ -311,18 +326,19 @@ class ArgCat:
             level=ArgCatPrintLevel.ERROR, indent=1)
 
     def print_parser_handlers(self) -> None:
-        ArgCatPrinter.print("Handler functions: ")
+        ArgCatPrinter.print("Handler functions: ", level=ArgCatPrintLevel.IF_NECESSARY)
         for parser_name, parser in self._arg_parsers.items():
             func_sig: Optional[inspect.Signature] = None
             if parser.handler_func is not None:
                 func_sig = inspect.signature(parser.handler_func)
-            ArgCatPrinter.print("{} => {} : {}".format(parser_name, parser.handler_func, func_sig), indent=1)
+            ArgCatPrinter.print("{} => {} : {}".format(parser_name, parser.handler_func, func_sig), indent=1, 
+            level=ArgCatPrintLevel.IF_NECESSARY)
     
     def print_parsers(self) -> None:
-        ArgCatPrinter.print("Parsers: ")
+        ArgCatPrinter.print("Parsers: ", level=ArgCatPrintLevel.IF_NECESSARY)
         for parser_name, parser in self._arg_parsers.items():
-            ArgCatPrinter.print("{}:".format(parser_name), indent=1)
+            ArgCatPrinter.print("{}:".format(parser_name), indent=1, level=ArgCatPrintLevel.IF_NECESSARY)
             for arg in parser.arguments:
                 dest = arg.get(ManifestConstants.DEST, None)
                 name = arg.get(ManifestConstants.NAME_OR_FLAGS, dest)
-                ArgCatPrinter.print("{} -> {}".format(name, dest), indent=2)
+                ArgCatPrinter.print("{} -> {}".format(name, dest), indent=2, level=ArgCatPrintLevel.IF_NECESSARY)
