@@ -14,27 +14,31 @@ class Foo:
     def value(self, new_value):
         self._value = new_value
     
+    @ArgCat.handler("config")
     def config_handler(self, name, user_name):
         print("self._value = {}".format(self._value))
         print("name = {}, user_name = {}".format(name, user_name))
 
+@ArgCat.handler("init")
 def init_handler():
     print("init_handler")
 
+@ArgCat.handler("info")
 def info_handler(detail):
     print("info_handler with detail: {}".format(detail))
 
+@ArgCat.handler("main")
 def main_handler(test):
     print("main_handler {}".format(test))
 
 def main():
     argcat = ArgCat(chatter=True)
     argcat.load("hello_cat.yml")
-    argcat.print_parsers()
-    argcat.print_parser_handlers()
     foo = Foo()
     foo._value = "new value"
-    argcat.set_handler('foo', foo)
+    argcat.set_handler_provider(foo)
+    argcat.print_parsers()
+    argcat.print_parser_handlers()
     argcat.parse()
     
 if __name__ == '__main__':
