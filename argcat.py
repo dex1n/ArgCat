@@ -5,7 +5,6 @@ import sys
 import argparse
 import inspect
 import yaml
-import functools
 from pathlib import Path
 from pydoc import locate
 from enum import Enum, unique
@@ -127,11 +126,13 @@ class ArgCat:
     @staticmethod
     def handler(parser_name):
         def decorator_handler(func):
-            @functools.wraps(func)
-            def wrapper_func(*args, **kwargs):
-                return func(*args, **kwargs)
-            wrapper_func.argcat_argument_parser_name = parser_name
-            return wrapper_func
+            # Add the attribute to the decorated func.
+            # In set_handler_provider(), all func with a valid 
+            # argcat_argument_parser_name attribute will be found and 
+            # recorded by the ArgCat instance for handling the parsed
+            # arguments.
+            func.argcat_argument_parser_name = parser_name
+            return func
         return decorator_handler
 
     def __init__(self, chatter=False):
@@ -266,7 +267,7 @@ class ArgCat:
             argument_groups_dict)
 
         # Find possible handlers in __main__
-        self.set_handler_provider(sys.modules['__main__'])
+        self.add_handler_provider(sys.modules['__main__'])
 
     def load(self, manifest_file_path: str) -> None:
         self._reset()
@@ -300,7 +301,7 @@ class ArgCat:
             level=ArgCatPrintLevel.ERROR, indent=1)
         return None
 
-    def set_handler_provider(self, handler_provider: Any) -> None:
+    def add_handler_provider(self, handler_provider: Any) -> None:
         ArgCatPrinter.print("Setting handlers from provider: \'{}\' ...".format(handler_provider))
         all_handler_func_dicts: List[Dict] = [{'name': name, 'func': obj} for name, obj in 
         inspect.getmembers(handler_provider) if ((inspect.ismethod(obj) or inspect.isfunction(obj)) and hasattr(obj, "argcat_argument_parser_name"))]

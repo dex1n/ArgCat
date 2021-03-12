@@ -32,11 +32,11 @@ def main_handler(test):
     print("main_handler {}".format(test))
 
 def main():
-    argcat = ArgCat(chatter=True)
+    argcat = ArgCat(chatter=False)
     argcat.load("hello_cat.yml")
     foo = Foo()
-    foo._value = "new value"
-    argcat.set_handler_provider(foo)
+    foo.value = "new value"
+    argcat.add_handler_provider(foo)
     argcat.print_parsers()
     argcat.print_parser_handlers()
     argcat.parse()
