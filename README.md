@@ -4,7 +4,7 @@
 
 Have you already been tired of writing argument parsing codes for your python command line program? 
 
-###### YES, I AM! (Why do you yell as hell?!) 
+#### YES, I AM! (Why do you yell as hell?!) 
 
 (This is the reason:) To me defining the argument parsers and adding varities of arguments in python are absolute chores and the most boring part of writing a python program. 
 
@@ -45,7 +45,7 @@ Codes above really destroy every happy and exciting things and steal the most va
 
 So, in the end, it does really matter! (Sorry Linkin Park) 
 
-So, (another so, you know, we love say so) eventually I create this ArgCat as the solution.
+So, (another so, you know, we love say so) eventually I create this __ArgCat__ as the solution.
 
 Generally speaking, ArgCat will allow you to define and config your parsers, arguments and handler functions in an YAML file, and then will create the actual parser instances according to the settings in the YAML and link the handler functions to resolve the input arguments of the parsers in the runtime. 
 
@@ -62,8 +62,13 @@ meta: # Include all essential configurations used for creating a new ArgumentPar
 parsers:  # All parsers including the "main" parser below, which is the very first parser created by argparse.ArgumentParser()
   main:
     arguments:
+      # Declare a positional argument for the main parser.
       -
-        name_or_flags: ["-t", "--test"]
+        # Mainly used for main arguments. If this is set to True, the argument will be filtered out before being passed
+        # into subparser's handler. Default value is False.
+        # In below case, the argument test will not be passed into any subparser's handler even this test 
+        # argument has a valid value instead of None.
+        ignored_by_subparser: True
         nargs: "?"
         dest: "test"
         metavar: "TEST"
@@ -75,7 +80,6 @@ parsers:  # All parsers including the "main" parser below, which is the very fir
     help: "Show information of something."
     arguments:
       -
-        name_or_flags: ["-d", "--detail"]
         nargs: "?"
         dest: "detail"
         metavar: "DETAIL"
@@ -105,13 +109,7 @@ parsers:  # All parsers including the "main" parser below, which is the very fir
         type: "str" 
         help: "The user name."
         group: "a_group"
-handlers: # All handlers for acutally handle the arguments input.
-  default:  # ArgCat will try to find functions in this default section in __main__
-    init: "init_handler"
-    info: "info_handler"
-    main: "main_handler"
-  foo:  # Custom class/instance/module has the functions for the parsers. This must be set before parse() being called.
-    config: "config_handler"
+
 ```
 
 Quite simple, right? (Not short, but really simple and straightforward. :P )
@@ -124,7 +122,7 @@ argcat.load("simple.yml")	# Simple!
 argcat.parse()
 ```
 
-That's it! When `argcat.parse()` is called, ArgCat will start to process the input arguments like what `ArgumentParser.parse_args()` does. ArgCat will send the corresponding arguments it received into the handler functions you define in the `handlers` part of the YAML file. And ArgCat will consider all functions in the `default` section as being in your `__main__` file. A complete `__main__` file example is below:
+That's it! When `argcat.parse()` is called, ArgCat will start to process the input arguments like what `ArgumentParser.parse_args()` does. It will send the corresponding arguments it received and parsed into the handler functions you define in your codes. The handler function/method needs to be decorated by the `@ArgCat.handler` decorator with the parser's name it's for. See an example below:
 
 ```python
 #!/usr/bin/python
@@ -143,70 +141,81 @@ class Foo:
     def value(self, new_value):
         self._value = new_value
     
+    @ArgCat.handler("config")
     def config_handler(self, name, user_name):
         print("self._value = {}".format(self._value))
         print("name = {}, user_name = {}".format(name, user_name))
 
+@ArgCat.handler("init")
 def init_handler():
     print("init_handler")
 
-def info_handler():
-    print("info_handler")
+@ArgCat.handler("info")
+def info_handler(detail):
+    print("info_handler with detail: {}".format(detail))
 
+@ArgCat.handler("main")
 def main_handler(test):
     print("main_handler {}".format(test))
 
 def main():
-    argcat = ArgCat()
+    argcat = ArgCat(chatter=False)
     argcat.load("hello_cat.yml")
     foo = Foo()
-    foo._value = "new value"
-    argcat.set_handler('foo', foo)
+    foo.value = "new value"
+    argcat.add_handler_provider(foo)
+    argcat.print_parsers()
+    argcat.print_parser_handlers()
     argcat.parse()
     
 if __name__ == '__main__':
     main()
 ```
 
-As you can see from the above codes, ArgCat also supports class function as the handler functions. If you would like to use the class functions, define them in the `handlers` part of the YAML file with a valid name ("foo" as below) and set the parser name and function name pair. 
+As you can see, a few functions and one method of the class `Foo` are decorated. And ArgCat will try to use the decorared functions/methods to handle the parsed arguments from the corresponding parser whose name declared in the decorator. 
+
+Note that all decorated functions in `__main__` file will be automatically got and paired by ArgCat __but__ the decorated methods of classes needs to be paired by manual call `argcat.add_handler_provider(foo)`, which lets ArgCat know where to find the handlers. 
+
+So, in above example, there are four handlers:
+
+- `init_handler()` for a parser named `init` 
+- `info_handler()` for a parser named `info`
+- `main_handler()` for a parser named `main`
+- `config_handler()` of `Foo` for a parser named `config`
+
+The parser's name must be exactly the same as the one declared in the YAML file, but the handler's name can be arbitary. 
+
+And handler's parameters must be exactly the same as the parsed arguments. For instances, in the above codes, `config_handler()` has two parameters `name` and `user_name` except `self`. They are totally the same as what `config` 's declared arguments below, 
 
 ```yaml
-handlers: # All handlers for acutally handle the arguments input.
-  foo:  # Custom class/instance/module has the functions for the parsers. This must be set before parse() being called.
-    config: "config_handler"
+arguments:
+      -
+        name_or_flags: ["-n", "--name"]
+        nargs: "?"
+        dest: "name"			# NOTE THIS DEST
+        metavar: "NAME"
+        type: "str"
+        help: "The name."
+        group: "a_group"  
+      - 
+        name_or_flags: ["-u", "--username"]
+        nargs: "?"
+        dest: "user_name"	# NOTE THIS DEST
+        metavar: "USER_NAME"
+        type: "str" 
+        help: "The user name."
+        group: "a_group"
 ```
 
-Then in your codes use `argcat.set_handler('foo', foo)` to link the handler to your valid object.
+because the parsed argument dict would be something like `{'name': '1', 'user_name': None}`. Otherwise, if one of `config_handler()` parameters is `foo_user_name` instead of `user_name`, the handler would not be able to receive the parsed arguments and an error would be reported by ArgCat like:
 
-```python
-class Foo:
-    def __init__(self):
-        self._value = "foo value."
-    
-    @property
-    def value(self):
-        return self._value
+`ERROR: Handling function Exception: "config_handler() got an unexpected keyword argument 'user_name'", with function sig: (name, foo_user_name) and received parameters: (name, user_name).`
 
-    @value.setter
-    def value(self, new_value):
-        self._value = new_value
-    
-    def config_handler(self, name, user_name):
-        print("self._value = {}".format(self._value))
-        print("name = {}, user_name = {}".format(name, user_name))
-        
-def main():
-    argcat = ArgCat()
-    argcat.load("hello_cat.yml")
-    foo = Foo()
-    foo._value = "new value"
-    argcat.set_handler('foo', foo)	# Link the handler to a valid instance object.
-    argcat.parse()
-```
+
 
 Phew...
 
-Ok. I think that's all for this README at this point. 
+Ok. I think that's all for this README at this point for v0.2.
 
 ArgCat is good, but not perfect. I will continue to improve it and update this documentation.
 
