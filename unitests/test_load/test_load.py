@@ -1,18 +1,12 @@
-import unittest
-import os
 from argcat import ArgCat, ManifestConstants
+from ..argcat_unit_test import ArgCatUnitTest
 
-class TestLoad(unittest.TestCase):
-    def _abs_path_of_test_file(self, file_path: str):
-        return os.path.join(self._cur_path, file_path)
-
+class TestLoad(ArgCatUnitTest):
     def setUp(self):
         self._argcat = ArgCat()
-        # __file__ = /Users/x1n/Main/Dev/Pypen/ArgCat/argcat/unitests/test_load/test_load.py
-        self._cur_path = os.path.dirname(__file__)
 
     def test_load_normal(self):
-        self._argcat.load(self._abs_path_of_test_file("normal.yml"))
+        self._argcat.load(self.abs_path_of_test_file("normal.yml"))
         # Total size
         self.assertEqual(len(self._argcat._arg_parsers), 4, 'Incorrect size of all parsers.')
         # Parsers
@@ -42,17 +36,17 @@ class TestLoad(unittest.TestCase):
         self._argcat.print_parsers()
 
     def test_load_incorrect_file_path(self):
-        self._argcat.load(self._abs_path_of_test_file("file_not_exist.yml"))
+        self._argcat.load(self.abs_path_of_test_file("file_not_exist.yml"))
         # Try to print method.
         self._argcat.print_parsers()
     
     def test_load_empty_file(self):
-        self._argcat.load(self._abs_path_of_test_file("empty.yml"))
+        self._argcat.load(self.abs_path_of_test_file("empty.yml"))
         # Try to print method.
         self._argcat.print_parsers()
     
     def test_load_incorrect_file(self):
-        self._argcat.load(self._abs_path_of_test_file("incorrect.yml"))
+        self._argcat.load(self.abs_path_of_test_file("incorrect.yml"))
 # We don't need this and we only run all tests from the root folder.
 # This is mainly for the right test file used in the tests.
 # if __name__ == '__main__':
