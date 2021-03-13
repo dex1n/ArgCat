@@ -1,0 +1,57 @@
+meta: # Include all essential configurations used for creating a new ArgumentParser.
+  prog: "Cool program name"
+  description: "Awesome description"
+  subparser:
+    title: "The subparsers title"
+    description: "The subparsers description"
+    help: "The subparsers help"
+parsers:  # All parsers including the "main" parser below, which is the very first parser created by argparse.ArgumentParser()
+  main:
+    arguments:
+      # Declare a positional argument for the main parser.
+      -
+        # Mainly used for main arguments. If this is set to True, the argument will be filtered out before being passed
+        # into subparser's handler. Default value is False.
+        # In below case, the argument test will not be passed into any subparser's handler even this test 
+        # argument has a valid value instead of None.
+        ignored_by_subparser: True
+        nargs: "?"
+        dest: "test"
+        metavar: "TEST"
+        type: "str" # The default type for this is "str". Use the type's lexical name here and ArgCat will try to convert it to the type object.
+        help: "Just for test"
+  init: # This is a subparser without any argument.
+    help: "Initialize something."
+  info: # This is a subparser has only one argument.
+    help: "Show information of something."
+    arguments:
+      -
+        nargs: "?"
+        dest: "detail"
+        metavar: "DETAIL"
+        type: "str" # The default type is "str". For this attribute we need to generate the right type from this type string when loading this file.
+        help: "The detail of the information"
+  config: # This is a sub parser has a few arguments and one group.
+    help: "Config something."
+    argument_groups:  # All groups this subparser has.
+      a_group:  # Group name can be any valid string. And any argument in the group should declare this in its argument config.
+        name: "Actual group name"
+        description: "Group description"
+        is_mutually_exclusive: true # Whether the group is mutually exclusive.
+    arguments:
+      -
+        name_or_flags: ["-n", "--name"]
+        nargs: "?"
+        dest: "name"
+        metavar: "NAME"
+        type: "str"
+        help: "The name."
+        group: "a_group"  # Declare that this argument is in the group whose name is "a_group" declared above.
+      - 
+        name_or_flags: ["-u", "--username"]
+        nargs: "?"
+        dest: "user_name"
+        metavar: "USER_NAME"
+        type: "str" 
+        help: "The user name."
+        group: "a_group"

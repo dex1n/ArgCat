@@ -59,7 +59,7 @@ class ArgCatPrinter:
             return
         level_str: str = str(level)
         indent_str: str
-        if indent <= 0 and (level is ArgCatPrintLevel.VERBOSE or level is ArgCatPrintLevel.IF_NECESSARY):
+        if indent <= 0:
             indent_str = cls.log_prefix + " "
         else:
             indent_str = cls.indent_blank_str * indent
@@ -170,13 +170,18 @@ class ArgCat:
                 except yaml.YAMLError as exc:
                     self._manifest_data = None
                     ArgCatPrinter.print("Manifest file with path {} failed to load for exception: {}."
-                    .format(resolved_file_path, exc), ArgCatPrintLevel.ERROR, 1)
+                    .format(resolved_file_path, exc), level=ArgCatPrintLevel.ERROR)
+                finally:
+                    if not self._manifest_data:
+                        ArgCatPrinter \
+                        .print(f"Load empty manifest data from the given manifest file {manifest_file_path}.", 
+                        level=ArgCatPrintLevel.WARNING)
         else:
             ArgCatPrinter.print("Manifest file with path {} cannot be found.".format(manifest_file_path), 
-            level=ArgCatPrintLevel.ERROR, indent=1)
+            level=ArgCatPrintLevel.ERROR)
 
     def _create_parsers(self) -> None:
-        if self._manifest_data is None:
+        if not self._manifest_data:
             return
         ArgCatPrinter.print("Creating parsers ...")
         meta_dict: Dict = self._manifest_data[ManifestConstants.META]
@@ -260,11 +265,11 @@ class ArgCat:
                 else: # Suppose it's str by default. If it's not, let it crash.
                     object_to_add_argument.add_argument(**argument_meta_dict)
             # Add a new ArgCatPartser with None handler_func    
-            self._arg_parsers[parser_name] = ArgCatParser(new_parser, parser_name, parser_arguments_list)
+            self._arg_parsers[parser_name] = ArgCatParser(parser=new_parser, name=parser_name, arguments=parser_arguments_list, 
+            groups=parser_argument_groups_dict)
 
         if ManifestConstants.MAIN not in self._arg_parsers:
-            self._arg_parsers[ManifestConstants.MAIN] = ArgCatParser(main_parser, ManifestConstants.MAIN, [], 
-            argument_groups_dict)
+            self._arg_parsers[ManifestConstants.MAIN] = ArgCatParser(parser=main_parser, name=ManifestConstants.MAIN, arguments=[])
 
         # Find possible handlers in __main__
         self.add_handler_provider(sys.modules['__main__'])
@@ -327,6 +332,9 @@ class ArgCat:
                 level=ArgCatPrintLevel.ERROR, indent=2)
 
     def print_parser_handlers(self) -> None:
+        if not self._arg_parsers:
+            ArgCatPrinter.print("ArgCat does not have any parser.", level=ArgCatPrintLevel.IF_NECESSARY)
+            return
         ArgCatPrinter.print("Handlers: ", level=ArgCatPrintLevel.IF_NECESSARY)
         for parser_name, parser in self._arg_parsers.items():
             func_sig: Optional[inspect.Signature] = None
@@ -336,6 +344,9 @@ class ArgCat:
             level=ArgCatPrintLevel.IF_NECESSARY)
     
     def print_parsers(self) -> None:
+        if not self._arg_parsers:
+            ArgCatPrinter.print("ArgCat does not have any parser.", level=ArgCatPrintLevel.IF_NECESSARY)
+            return
         ArgCatPrinter.print("Parsers: ", level=ArgCatPrintLevel.IF_NECESSARY)
         for parser_name, parser in self._arg_parsers.items():
             ArgCatPrinter.print("{}:".format(parser_name), indent=1, level=ArgCatPrintLevel.IF_NECESSARY)
