@@ -222,6 +222,8 @@ because the parsed argument dict would be something like `{'name': '1', 'user_na
 
 `ERROR: Handling function Exception: "config_handler() got an unexpected keyword argument 'user_name'", with function sig: (name, foo_user_name) and received parameters: (name, user_name).`
 
+And currently parser handler does not support  `@staticmethod` and `@classmethod`. 
+
 
 
 Phew...

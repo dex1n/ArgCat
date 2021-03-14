@@ -306,7 +306,9 @@ class ArgCat:
         ArgCatPrinter.print("Setting handlers from provider: \'{}\' ...".format(handler_provider))
         all_handler_func_dicts: List[Dict] = [{'name': name, 'func': obj} for name, obj in 
         inspect.getmembers(handler_provider) if ((inspect.ismethod(obj) or inspect.isfunction(obj)) and hasattr(obj, "argcat_argument_parser_name"))]
-        
+        print(all_handler_func_dicts)
+        # The functions retrieved will be in alphabet order. So, if there are method/functions with duplicate names, 
+        # the first one in the sequence will be added and the other ones will be discarded.
         if not all_handler_func_dicts:
             ArgCatPrinter.print(f"The handler provider '{handler_provider}' does not have any handler. Skip ...", 
             level=ArgCatPrintLevel.VERBOSE, indent=1)
@@ -325,7 +327,7 @@ class ArgCat:
                     level=ArgCatPrintLevel.WARNING, indent=2)
             else:
                 ArgCatPrinter.print(f"Unknown parser '{parser_name}' to set with handler '{func_name}'.", 
-                level=ArgCatPrintLevel.ERROR, indent=2)
+                level=ArgCatPrintLevel.WARNING, indent=2)
 
     def print_parser_handlers(self) -> None:
         if not self._arg_parsers:
