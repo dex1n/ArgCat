@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import argparse
 import inspect
 import yaml
@@ -270,9 +269,6 @@ class ArgCat:
 
         if ManifestConstants.MAIN not in self._arg_parsers:
             self._arg_parsers[ManifestConstants.MAIN] = ArgCatParser(parser=main_parser, name=ManifestConstants.MAIN, arguments=[])
-
-        # Find possible handlers in __main__
-        self.add_handler_provider(sys.modules['__main__'])
 
     def load(self, manifest_file_path: str) -> None:
         self._reset()

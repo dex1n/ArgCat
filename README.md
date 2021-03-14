@@ -122,7 +122,11 @@ argcat.load("simple.yml")	# Simple!
 argcat.parse()
 ```
 
-That's it! When `argcat.parse()` is called, ArgCat will start to process the input arguments like what `ArgumentParser.parse_args()` does. It will send the corresponding arguments it received and parsed into the handler functions you define in your codes. The handler function/method needs to be decorated by the `@ArgCat.handler` decorator with the parser's name it's for. See an example below:
+That's it! When `argcat.parse()` is called, ArgCat will start to process the input arguments like what `ArgumentParser.parse_args()` does. It will send the corresponding arguments it received and parsed and passed into the handlers you **defined** in your codes. 
+
+Here are two steps you need to define the handlers that ArgCat can know and use:
+
+1. The handler (function/method) must be decorated by the `@ArgCat.handler` decorator with the parser's name it's for. See an example below:
 
 ```python
 #!/usr/bin/python
@@ -157,12 +161,21 @@ def info_handler(detail):
 @ArgCat.handler("main")
 def main_handler(test):
     print("main_handler {}".format(test))
+```
 
+As you can see, a few functions and one method of the class `Foo` are decorated. 
+
+2. With the decorations,  you must let ArgCat know where to find the handlers by calling `ArgCat.add_handler_provider(provider: Any) -> None` like below:
+
+```python
 def main():
     argcat = ArgCat(chatter=False)
     argcat.load("hello_cat.yml")
     foo = Foo()
     foo.value = "new value"
+    # Find handlers in __main__
+    argcat.add_handler_provider(sys.modules['__main__'])
+    # Find handlers in Foo
     argcat.add_handler_provider(foo)
     argcat.print_parsers()
     argcat.print_parser_handlers()
@@ -172,18 +185,16 @@ if __name__ == '__main__':
     main()
 ```
 
-As you can see, a few functions and one method of the class `Foo` are decorated. And ArgCat will try to use the decorared functions/methods to handle the parsed arguments from the corresponding parser whose name declared in the decorator. 
+When `ArgCat.add_handler_provider(provider: Any) -> None` is called, ArgCat will try to find the decorated handlers from the `provider`. Note that the functions above such as `init_handler()` is in `__main__`, so the corresponding `provider` should be `sys.modules['__main__']` which returns the `__main__` namespace.  
 
-Note that all decorated functions in `__main__` file will be automatically got and paired by ArgCat __but__ the decorated methods of classes needs to be paired by manual call `argcat.add_handler_provider(foo)`, which lets ArgCat know where to find the handlers. 
-
-So, in above example, there are four handlers:
+In above example there are four handlers in detail:
 
 - `init_handler()` for a parser named `init` 
 - `info_handler()` for a parser named `info`
 - `main_handler()` for a parser named `main`
 - `config_handler()` of `Foo` for a parser named `config`
 
-The parser's name must be exactly the same as the one declared in the YAML file, but the handler's name can be arbitary. 
+The parser's name must be exactly the same as the one declared in the manifest YAML file, but the handler's name can be arbitary. 
 
 And handler's parameters must be exactly the same as the parsed arguments. For instances, in the above codes, `config_handler()` has two parameters `name` and `user_name` except `self`. They are totally the same as what `config` 's declared arguments below, 
 
@@ -207,7 +218,7 @@ arguments:
         group: "a_group"
 ```
 
-because the parsed argument dict would be something like `{'name': '1', 'user_name': None}`. Otherwise, if one of `config_handler()` parameters is `foo_user_name` instead of `user_name`, the handler would not be able to receive the parsed arguments and an error would be reported by ArgCat like:
+because the parsed argument dict would be something like `{'name': '1', 'user_name': None}` for `config`'s case. Otherwise, if one of `config_handler()` parameters is `foo_user_name` instead of `user_name`, the handler would not be able to receive the parsed arguments and an error would be reported by ArgCat like:
 
 `ERROR: Handling function Exception: "config_handler() got an unexpected keyword argument 'user_name'", with function sig: (name, foo_user_name) and received parameters: (name, user_name).`
 

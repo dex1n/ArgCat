@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from argcat import ArgCat
+import sys
 
 class Foo:
     def __init__(self):
@@ -36,6 +37,9 @@ def main():
     argcat.load("hello_cat.yml")
     foo = Foo()
     foo.value = "new value"
+    # Find handlers in __main__
+    argcat.add_handler_provider(sys.modules['__main__'])
+    # Find handlers in Foo
     argcat.add_handler_provider(foo)
     argcat.print_parsers()
     argcat.print_parser_handlers()
