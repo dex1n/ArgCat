@@ -57,7 +57,7 @@ class TestHandler(ArgCatUnitTest):
         self._argcat = ArgCat()
         self._argcat.load(self.abs_path_of_test_file("handler.yml"))
 
-    def taaaest_normal_handlers(self) -> None:
+    def test_normal_handlers(self) -> None:
         self._argcat.add_handler_provider(NormalHandlerProvider())
         for parser_name in ['main', 'info', 'init', 'config']:
             self.assertIsNotNone(self._argcat._arg_parsers[parser_name].handler_func, 
@@ -65,7 +65,7 @@ class TestHandler(ArgCatUnitTest):
             self.assertEqual(self._argcat._arg_parsers[parser_name].handler_func(), 
             parser_name, f"Parser handler for '{parser_name}' is wrong!")
     
-    def taaaest_incorrect_handlers(self) -> None:
+    def test_incorrect_handlers(self) -> None:
         self._argcat.add_handler_provider(IncorrectHandlerProvider())
         self.assertIsNotNone(self._argcat._arg_parsers['init'].handler_func, 
         "Parser 'init' should not be None!")
