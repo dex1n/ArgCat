@@ -122,9 +122,9 @@ argcat.load("simple.yml")	# Simple!
 argcat.parse()
 ```
 
-That's it! When `argcat.parse()` is called, ArgCat will start to process the input arguments like what `ArgumentParser.parse_args()` does. It will send the corresponding arguments it received and parsed and passed into the handlers you **defined** in your codes. 
+That's it! When `argcat.parse()` is called, ArgCat will start to process the input arguments like what `ArgumentParser.parse_args()` does. It will send the corresponding arguments it received and parsed and passed into the handlers you _defined_ in your codes. 
 
-Here are two steps you need to define the handlers that ArgCat can know and use:
+Here are two steps you need to do for defining the handlers that ArgCat can know and use:
 
 1. The handler (function/method) must be decorated by the `@ArgCat.handler` decorator with the parser's name it's for. See an example below:
 
@@ -132,6 +132,7 @@ Here are two steps you need to define the handlers that ArgCat can know and use:
 #!/usr/bin/python
 
 from argcat import ArgCat
+import sys
 
 class Foo:
     def __init__(self):
@@ -145,25 +146,31 @@ class Foo:
     def value(self, new_value):
         self._value = new_value
     
+    # Regular class instance method
     @ArgCat.handler("config")
     def config_handler(self, name, user_name):
         print("self._value = {}".format(self._value))
         print("name = {}, user_name = {}".format(name, user_name))
 
-@ArgCat.handler("init")
-def init_handler():
-    print("init_handler")
+    # Static method of class
+    @staticmethod
+    @ArgCat.handler("init")
+    def init_handler():
+        print("init_handler")
 
-@ArgCat.handler("info")
-def info_handler(detail):
-    print("info_handler with detail: {}".format(detail))
+    # Class method
+    @classmethod
+    @ArgCat.handler("info")
+    def info_handler(cls, detail):
+        print("info_handler with detail: {}".format(detail))
 
+# Regular function
 @ArgCat.handler("main")
 def main_handler(test):
     print("main_handler {}".format(test))
 ```
 
-As you can see, a few functions and one method of the class `Foo` are decorated. 
+As you can see, one function and three methods of the class `Foo` are decorated. 
 
 2. With the decorations,  you must let ArgCat know where to find the handlers by calling `ArgCat.add_handler_provider(provider: Any) -> None` like below:
 
@@ -173,9 +180,9 @@ def main():
     argcat.load("hello_cat.yml")
     foo = Foo()
     foo.value = "new value"
-    # Find handlers in __main__
+    # Provide handlers in __main__
     argcat.add_handler_provider(sys.modules['__main__'])
-    # Find handlers in Foo
+    # Provide handlers in Foo
     argcat.add_handler_provider(foo)
     argcat.print_parsers()
     argcat.print_parser_handlers()
@@ -185,18 +192,18 @@ if __name__ == '__main__':
     main()
 ```
 
-When `ArgCat.add_handler_provider(provider: Any) -> None` is called, ArgCat will try to find the decorated handlers from the `provider`. Note that the functions above such as `init_handler()` is in `__main__`, so the corresponding `provider` should be `sys.modules['__main__']` which returns the `__main__` namespace.  
+When `ArgCat.add_handler_provider(provider: Any)` is called, ArgCat will try to find the decorated handlers from the `provider`. Note that the function `init_handler()` above is in `__main__`, so the corresponding `provider` should be `sys.modules['__main__']` which returns the `__main__` scope.  
 
 In above example there are four handlers in detail:
 
-- `init_handler()` for a parser named `init` 
-- `info_handler()` for a parser named `info`
-- `main_handler()` for a parser named `main`
-- `config_handler()` of `Foo` for a parser named `config`
+- `init_handler()` a `@staticmethod` method of the class for a parser named `init` 
+- `info_handler()` a `@classmethod` method of the class for a parser named `info`
+- `main_handler()` a regular function for a parser named `main`
+- `config_handler()` a regular instance method of the class for a parser named `config`
 
 The parser's name must be exactly the same as the one declared in the manifest YAML file, but the handler's name can be arbitary. 
 
-And handler's parameters must be exactly the same as the parsed arguments. For instances, in the above codes, `config_handler()` has two parameters `name` and `user_name` except `self`. They are totally the same as what `config` 's declared arguments below, 
+And handler's signature must match the parsed arguments. For instances, in the above codes, `config_handler()` has two parameters `name` and `user_name` except `self`. They exactly match what `config` 's declared arguments below, 
 
 ```yaml
 arguments:
@@ -218,13 +225,21 @@ arguments:
         group: "a_group"
 ```
 
-because the parsed argument dict would be something like `{'name': '1', 'user_name': None}` for `config`'s case. Otherwise, if one of `config_handler()` parameters is `foo_user_name` instead of `user_name`, the handler would not be able to receive the parsed arguments and an error would be reported by ArgCat like:
+because the parsed argument dict would be something like `{'name': '1', 'user_name': None}` for `config`'s case. With the dict, the handler will be called through `config_handler(**theDict)`. Otherwise, if one of `config_handler()` parameters is `foo_user_name` instead of `user_name`, the handler would not be able to receive the parsed arguments and an error would be reported by ArgCat like:
 
 `ERROR: Handling function Exception: "config_handler() got an unexpected keyword argument 'user_name'", with function sig: (name, foo_user_name) and received parameters: (name, user_name).`
 
-And currently parser handler does not support  `@staticmethod` and `@classmethod`. 
+And if the method of the handler is  `@staticmethod` or  `@classmethod`, the decorations should be something like this:
 
+```python
+# Class method
+@classmethod
+@ArgCat.handler("info")		# This decorator must be placed closest to the method.
+def info_handler(cls, detail):
+		print("info_handler with detail: {}".format(detail))
+```
 
+ 
 
 Phew...
 

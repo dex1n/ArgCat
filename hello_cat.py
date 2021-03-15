@@ -15,19 +15,25 @@ class Foo:
     def value(self, new_value):
         self._value = new_value
     
+    # Regular class instance method
     @ArgCat.handler("config")
     def config_handler(self, name, user_name):
         print("self._value = {}".format(self._value))
         print("name = {}, user_name = {}".format(name, user_name))
 
-@ArgCat.handler("init")
-def init_handler():
-    print("init_handler")
+    # Static method of class
+    @staticmethod
+    @ArgCat.handler("init")
+    def init_handler():
+        print("init_handler")
 
-@ArgCat.handler("info")
-def info_handler(detail):
-    print("info_handler with detail: {}".format(detail))
+    # Class method
+    @classmethod
+    @ArgCat.handler("info")
+    def info_handler(cls, detail):
+        print("info_handler with detail: {}".format(detail))
 
+# Regular function
 @ArgCat.handler("main")
 def main_handler(test):
     print("main_handler {}".format(test))

@@ -38,18 +38,18 @@ class IncorrectHandlerProvider:
     #    return 'config'
 
 class DifferentKindsOfHandlerProvider:
-    @ArgCat.handler(parser_name='main')  
     @staticmethod
+    @ArgCat.handler(parser_name='main')  
     def static_main_handler(test: str=None) -> None:
         return 'static_main'
 
-    @ArgCat.handler(parser_name='info')  
     @classmethod
+    @ArgCat.handler(parser_name='info')  
     def static_info_handler(cls, detail: str=None) -> None:
         return 'class_info'
     
     @ArgCat.handler(parser_name='init')  
-    def normal_function_init_handler() -> None:
+    def normal_function_init_handler(self) -> None:
         return 'normal_function_init'
 
 class TestHandler(ArgCatUnitTest):
@@ -77,14 +77,15 @@ class TestHandler(ArgCatUnitTest):
 
     def test_different_kinds_of_handlers(self) -> None:
         self._argcat.add_handler_provider(DifferentKindsOfHandlerProvider())
-        self.assertIsNone(self._argcat._arg_parsers['main'].handler_func, 
-        "Parser handler for 'main' should be None, because ArgCat does not support @staticmethod.")
-        self.assertIsNone(self._argcat._arg_parsers['info'].handler_func, 
-        "Parser handler for 'info' should be None, because ArgCat does not support @classmethod.")
-        self.assertIsNotNone(self._argcat._arg_parsers['init'].handler_func, 
-        "Parser handler for 'init' should not be None, because ArgCat support normal function in class.")
-        # Below should not work because 'normal_function_init_handler' is not a correct method of a class.
-        self.assertEqual(self._argcat._arg_parsers['init'].handler_func(), 'normal_function_init', "Parser handler for 'init' is wrong!")
+        for parser_name in ['main', 'info', 'init']:
+            self.assertIsNotNone(self._argcat._arg_parsers[parser_name].handler_func, 
+            f"Parser handler for '{parser_name}' should not be None!")
+        self.assertEqual(self._argcat._arg_parsers['main'].handler_func(), 'static_main', 
+        "Parser handler for 'main' is wrong!")
+        self.assertEqual(self._argcat._arg_parsers['info'].handler_func(), 'class_info', 
+        "Parser handler for 'info' is wrong!")
+        self.assertEqual(self._argcat._arg_parsers['init'].handler_func(), 'normal_function_init', 
+        "Parser handler for 'init' is wrong!")
 
        
 

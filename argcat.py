@@ -306,7 +306,6 @@ class ArgCat:
         ArgCatPrinter.print("Setting handlers from provider: \'{}\' ...".format(handler_provider))
         all_handler_func_dicts: List[Dict] = [{'name': name, 'func': obj} for name, obj in 
         inspect.getmembers(handler_provider) if ((inspect.ismethod(obj) or inspect.isfunction(obj)) and hasattr(obj, "argcat_argument_parser_name"))]
-        print(all_handler_func_dicts)
         # The functions retrieved will be in alphabet order. So, if there are method/functions with duplicate names, 
         # the first one in the sequence will be added and the other ones will be discarded.
         if not all_handler_func_dicts:
