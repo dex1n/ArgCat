@@ -74,11 +74,11 @@ class ArgCatParser:
         self._groups: Optional[Dict] = groups
         self._handler_func: Optional[Callable] = handler_func
     
-    def parse_args(self) -> Tuple[str, Dict]:
+    def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Tuple[str, Dict]:
         # Call the main parser's parse_args() to parse the arguments input.
-        args: Namespace = self._parser.parse_args()
-        ArgCatPrinter.print("Parsed args to: {}".format(args))
-        parsed_arguments_dict: Dict = dict(vars(args))
+        parsed_args: Namespace = self._parser.parse_args(args=args, namespace=namespace)
+        ArgCatPrinter.print("Parsed args to: {}".format(parsed_args))
+        parsed_arguments_dict: Dict = dict(vars(parsed_args))
         sub_parser_name: str = parsed_arguments_dict[ManifestConstants.SUB_PARSER_NAME]
         del parsed_arguments_dict[ManifestConstants.SUB_PARSER_NAME]
         # If the sub parser is needed, remove all arguments from the 
@@ -276,9 +276,10 @@ class ArgCat:
         self._create_parsers()
         ArgCatPrinter.print("Loading DONE. Use print_xx functions for more information.")
 
-    def parse(self) -> Any:
+    def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Any:
         # Call the main parser's parse_args() to parse the arguments input.
-        sub_parser_name, parsed_arguments_dict = self._arg_parsers[ManifestConstants.MAIN].parse_args()
+        sub_parser_name, parsed_arguments_dict = self._arg_parsers[ManifestConstants.MAIN].parse_args(args=args, 
+        namespace=namespace)
         parser = self._arg_parsers[sub_parser_name]
         handler_func = parser.handler_func
         if handler_func is not None:

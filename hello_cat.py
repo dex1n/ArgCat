@@ -49,7 +49,7 @@ def main():
     argcat.add_handler_provider(foo)
     argcat.print_parsers()
     argcat.print_parser_handlers()
-    argcat.parse()
+    argcat.parse_args()
     
 if __name__ == '__main__':
     main()
