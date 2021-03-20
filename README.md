@@ -172,7 +172,7 @@ def main_handler(test):
     print("main_handler {}".format(test))
 ```
 
-As you can see, one function and three methods of the class `Foo` are decorated. 
+As you can see, one function and three methods of the class `Foo` are decorated.
 
 2. With the decorations,  you must let ArgCat know where to find the handlers by calling `ArgCat.add_handler_provider(provider: Any)` like below:
 
@@ -236,9 +236,9 @@ And if the method of the handler is `@staticmethod` or `@classmethod`, the decor
 ```python
 # Class method
 @classmethod
-@ArgCat.handler("info")		# This decorator must be placed closest to the method.
+@ArgCat.handler("info")  # This decorator must be placed closest to the method.
 def info_handler(cls, detail):
-		print("info_handler with detail: {}".format(detail))
+    print("info_handler with detail: {}".format(detail))
 ```
 
  And there are also files of two examples in this project, and one includes two files: `hello_cat.py`, `hello_cat.yml`. The first one is a main file shows how to use ArgCat and contains the codes demonstrated in this README. And the latter one is the YAML file. When you are using ArgCat, you can take them as reference. Another file named `hello_chore.py` shows the traditional way to use the ArgumentParser. 
