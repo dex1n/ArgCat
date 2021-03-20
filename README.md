@@ -117,8 +117,10 @@ Quite simple, right? (Not short, but really simple and straightforward. :P )
 And use it in your codes like:
 
 ```python
+from argcat import ArgCat
 argcat = ArgCat()
-argcat.load("simple.yml")	# Load the information from YAML file and use them to create ArgumentParsers.
+# Load the information from YAML file and use them to create ArgumentParsers.
+argcat.load("simple.yml")	
 argcat.parse_args()
 ```
 
@@ -239,7 +241,11 @@ def info_handler(cls, detail):
 		print("info_handler with detail: {}".format(detail))
 ```
 
- 
+ And there are also files of two examples in this project, and one includes two files: `hello_cat.py`, `hello_cat.yml`. The first one is a main file shows how to use ArgCat and contains the codes demonstrated in this README. And the latter one is the YAML file. When you are using ArgCat, you can take them as reference. Another file named `hello_chore.py` shows the traditional way to use the ArgumentParser. 
+
+If you encounter any issue or have any question please feel free to open an issue ticket or send me email. 
+
+
 
 Phew...
 
