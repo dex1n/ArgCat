@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from argcat import ArgCat
+import sys
 
 class Foo:
     def __init__(self):
@@ -14,26 +15,41 @@ class Foo:
     def value(self, new_value):
         self._value = new_value
     
+    # Regular class instance method
+    @ArgCat.handler("config")
     def config_handler(self, name, user_name):
         print("self._value = {}".format(self._value))
         print("name = {}, user_name = {}".format(name, user_name))
 
-def init_handler():
-    print("init_handler")
+    # Static method of class
+    @staticmethod
+    @ArgCat.handler("init")
+    def init_handler():
+        print("init_handler")
 
-def info_handler(detail):
-    print("info_handler with detail: {}".format(detail))
+    # Class method
+    @classmethod
+    @ArgCat.handler("info")
+    def info_handler(cls, detail):
+        print("info_handler with detail: {}".format(detail))
 
+# Regular function
+@ArgCat.handler("main")
 def main_handler(test):
     print("main_handler {}".format(test))
 
 def main():
-    argcat = ArgCat()
+    argcat = ArgCat(chatter=False)
     argcat.load("hello_cat.yml")
     foo = Foo()
-    foo._value = "new value"
-    argcat.set_handler('foo', foo)
-    argcat.parse()
+    foo.value = "new value"
+    # Find handlers in __main__
+    argcat.add_handler_provider(sys.modules['__main__'])
+    # Find handlers in Foo
+    argcat.add_handler_provider(foo)
+    argcat.print_parsers()
+    argcat.print_parser_handlers()
+    argcat.parse_args()
     
 if __name__ == '__main__':
     main()
