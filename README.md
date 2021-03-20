@@ -1,12 +1,12 @@
 # ArgCat
 
-### A cute helper for python argument parsing
+### A cute helper for ArgumentParser in Python 3
 
 Have you already been tired of writing argument parsing codes for your python command line program? 
 
 #### YES, I AM! (Why do you yell as hell?!) 
 
-(This is the reason:) To me defining the argument parsers and adding varities of arguments in python are absolute chores and the most boring part of writing a python program. 
+(This is the reason:) To me, defining the argument parsers and adding/setting varities of arguments in python are absolute chores and the most boring part of writing a python program. 
 
 You know, __Life is short, I use Python__...just to write the creative and fun stuffs. But not these:
 
@@ -41,13 +41,13 @@ elif sub_command is None:
     main_handler(args.test)
 ```
 
-Codes above really destroy every happy and exciting things and steal the most valuable thing from me: TIME!
+Codes above really destroy every happy and exciting experience and steal the most valuable thing from us: **TIME!**
 
 So, in the end, it does really matter! (Sorry Linkin Park) 
 
-So, (another so, you know, we love say so) eventually I create this __ArgCat__ as the solution.
+So, (another so, you know, we love to say so) eventually I create this __ArgCat__ as the way to get out of the hell.
 
-Generally speaking, ArgCat will allow you to define and config your parsers, arguments and handler functions in an YAML file, and then will create the actual parser instances according to the settings in the YAML and link the handler functions to resolve the input arguments of the parsers in the runtime. 
+Generally speaking, ArgCat allows you to define and config your ArgumentParsers and their arguments in YAML format, and then creates the ArgumentParser instances according to the YAML in the runtime. 
 
 Below is an example of a YAML file:
 
@@ -118,13 +118,13 @@ And use it in your codes like:
 
 ```python
 argcat = ArgCat()
-argcat.load("simple.yml")	# Simple!
-argcat.parse()
+argcat.load("simple.yml")	# Load the information from YAML file and use them to create ArgumentParsers.
+argcat.parse_args()
 ```
 
-That's it! When `argcat.parse()` is called, ArgCat will start to process the input arguments like what `ArgumentParser.parse_args()` does. It will send the corresponding arguments it received and parsed and passed into the handlers you _defined_ in your codes. 
+That's it! When `argcat.parse_args()` is called, ArgCat starts to process the input arguments like what `ArgumentParser.parse_args()` does. It will send the corresponding arguments it received and parsed, and then passes into the handlers you _defined_ in your codes. Speaking of _define_:
 
-Here are two steps you need to do for defining the handlers that ArgCat can know and use:
+There are two steps you need to do for defining argument handlers ArgCat can know and use:
 
 1. The handler (function/method) must be decorated by the `@ArgCat.handler` decorator with the parser's name it's for. See an example below:
 
@@ -172,7 +172,7 @@ def main_handler(test):
 
 As you can see, one function and three methods of the class `Foo` are decorated. 
 
-2. With the decorations,  you must let ArgCat know where to find the handlers by calling `ArgCat.add_handler_provider(provider: Any) -> None` like below:
+2. With the decorations,  you must let ArgCat know where to find the handlers by calling `ArgCat.add_handler_provider(provider: Any)` like below:
 
 ```python
 def main():
@@ -192,18 +192,18 @@ if __name__ == '__main__':
     main()
 ```
 
-When `ArgCat.add_handler_provider(provider: Any)` is called, ArgCat will try to find the decorated handlers from the `provider`. Note that the function `init_handler()` above is in `__main__`, so the corresponding `provider` should be `sys.modules['__main__']` which returns the `__main__` scope.  
+When `ArgCat.add_handler_provider(provider: Any)` is called, ArgCat will try to find the decorated handlers from the `provider`. Note that the function `init_handler()` is in `__main__`, so the corresponding `provider` should be `sys.modules['__main__']` which returns the `__main__` scope.  
 
-In above example there are four handlers in detail:
+To sum it up, there are four handlers in above example :
 
-- `init_handler()` a `@staticmethod` method of the class for a parser named `init` 
-- `info_handler()` a `@classmethod` method of the class for a parser named `info`
-- `main_handler()` a regular function for a parser named `main`
-- `config_handler()` a regular instance method of the class for a parser named `config`
+- `init_handler()`: a `@staticmethod` method of the class for a parser named `init` 
+- `info_handler()`: a `@classmethod` method of the class for a parser named `info`
+- `main_handler()`: a regular function for a parser named `main`
+- `config_handler()`:  a regular instance method of the class for a parser named `config`
 
-The parser's name must be exactly the same as the one declared in the manifest YAML file, but the handler's name can be arbitary. 
+The parser's name must be exactly the same as the one declared in the YAML file, but the handler's name can be arbitary. 
 
-And handler's signature must match the parsed arguments. For instances, in the above codes, `config_handler()` has two parameters `name` and `user_name` except `self`. They exactly match what `config` 's declared arguments below, 
+And handler's signature must match the parsed arguments. For instances, in the above codes, `config_handler()` has two parameters `name` and `user_name` except `self`. They exactly match what `config` 's declared arguments below.
 
 ```yaml
 arguments:
@@ -225,11 +225,11 @@ arguments:
         group: "a_group"
 ```
 
-because the parsed argument dict would be something like `{'name': '1', 'user_name': None}` for `config`'s case. With the dict, the handler will be called through `config_handler(**theDict)`. Otherwise, if one of `config_handler()` parameters is `foo_user_name` instead of `user_name`, the handler would not be able to receive the parsed arguments and an error would be reported by ArgCat like:
+The parsed argument dict would be something like `{'name': '1', 'user_name': None}` for `config`'s case. And the handler function `config_handler()` will be called with key arguments given by `**theDict` , which means the function will be called like this: `config_handler(**theDict)`. As a result, if one of `config_handler()` parameters is `foo_user_name` instead of `user_name`, the handler would not be able to receive the parsed arguments and an error would be reported by ArgCat like:
 
 `ERROR: Handling function Exception: "config_handler() got an unexpected keyword argument 'user_name'", with function sig: (name, foo_user_name) and received parameters: (name, user_name).`
 
-And if the method of the handler is  `@staticmethod` or  `@classmethod`, the decorations should be something like this:
+And if the method of the handler is `@staticmethod` or `@classmethod`, the decorations should be closest to the method like:
 
 ```python
 # Class method
@@ -250,4 +250,32 @@ ArgCat is good, but not perfect. I will continue to improve it and update this d
 Hope you enjoy coding in Python.
 
 `~Peace & Love~`
+
+
+
+# License
+
+```
+MIT License
+
+Copyright (c) 2021 Chunxi Xin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
