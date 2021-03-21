@@ -51,7 +51,7 @@ class ArgCatPrinter:
     filter_level: ClassVar[ArgCatPrintLevel] = ArgCatPrintLevel.VERBOSE
     log_prefix: ClassVar[str] = "<ArgCat>"
     indent_blank_str: ClassVar[str] = " " * 2
-
+    
     @classmethod
     def print(cls, msg: str, *, level: ArgCatPrintLevel = ArgCatPrintLevel.VERBOSE, indent: int = 0) -> None:
         if level.value < cls.filter_level.value:
@@ -73,7 +73,27 @@ class ArgCatParser:
         self._arguments: List[Dict] = arguments
         self._groups: Optional[Dict] = groups
         self._handler_func: Optional[Callable] = handler_func
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def arguments(self) -> List[Dict]:
+        return self._arguments
+
+    @property
+    def handler_func(self) -> Optional[Callable]:
+        return self._handler_func
     
+    @handler_func.setter
+    def handler_func(self, value) -> None:         
+        self._handler_func = value
+
+    @property
+    def groups(self) -> Optional[Dict]:
+        return self._groups
+
     def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Tuple[str, Dict]:
         # Call the main parser's parse_args() to parse the arguments input.
         parsed_args: Namespace = self._parser.parse_args(args=args, namespace=namespace)
@@ -100,30 +120,15 @@ class ArgCatParser:
             sub_parser_name = self._name
         return sub_parser_name, parsed_arguments_dict
 
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def arguments(self) -> List[Dict]:
-        return self._arguments
-
-    @property
-    def handler_func(self) -> Optional[Callable]:
-        return self._handler_func
-    
-    @handler_func.setter
-    def handler_func(self, value) -> None:         
-        self._handler_func = value
-
-    @property
-    def groups(self) -> Optional[Dict]:
-        return self._groups
-
 class ArgCat:
-    # ArgCat argument parser handler decorator
     @staticmethod
     def handler(parser_name):
+        """ArgCat handler decorator.
+        
+        This is to make regular function/method become handler for ArgCat. And
+        parser_name must be exactly the same as the parser's name defined in 
+        the YAML file.
+        """
         def decorator_handler(func):
             # Add the attribute to the decorated func.
             # In set_handler_provider(), all func with a valid 
@@ -135,6 +140,8 @@ class ArgCat:
         return decorator_handler
 
     def __init__(self, chatter=False):
+        """If chatter is True, ArgCat will display verbose prints. Otherwise,
+        it will keep silence until the print_* methods are called."""
         self.chatter = chatter
         ArgCatPrinter.print("Your cute argument parsing helper. >v<")
         self._reset()
@@ -271,12 +278,28 @@ class ArgCat:
             self._arg_parsers[ManifestConstants.MAIN] = ArgCatParser(parser=main_parser, name=ManifestConstants.MAIN, arguments=[])
 
     def load(self, manifest_file_path: str) -> None:
+        """Load manifest from file at path.
+
+        The manifest file must be a YAML file and have valid information for
+        ArgCat to load. 
+
+        Returns None
+        """
         self._reset()
         self._load_manifest(manifest_file_path)
         self._create_parsers()
         ArgCatPrinter.print("Loading DONE. Use print_xx functions for more information.")
 
     def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Any:
+        """Start to parse args.
+
+        This method is pretty much the same as the original parse_args of ArgumentParser, which means
+        you can use it the same way as you use ArgumentParser's before.
+
+        Returns result from handler. This is the only difference from the ArgumentParser's parse_args.
+        The latter one returns a Namespace, but ArgCat returns the result from handler since 
+        ArgCat has taken care of parsing the raw Namespace from ArgumentParser.
+        """
         # Call the main parser's parse_args() to parse the arguments input.
         sub_parser_name, parsed_arguments_dict = self._arg_parsers[ManifestConstants.MAIN].parse_args(args=args, 
         namespace=namespace)
@@ -304,6 +327,13 @@ class ArgCat:
         return None
 
     def add_handler_provider(self, handler_provider: Any) -> None:
+        """Set an object as the provider for ArgCat to find handlers.
+
+        The provider can normally be a (meta) class (instance), namespace or 
+        anything has @ArgCat.handler decorated method/function.
+
+        Returns None.
+        """
         ArgCatPrinter.print("Setting handlers from provider: \'{}\' ...".format(handler_provider))
         all_handler_func_dicts: List[Dict] = [{'name': name, 'func': obj} for name, obj in 
         inspect.getmembers(handler_provider) if ((inspect.ismethod(obj) or inspect.isfunction(obj)) and hasattr(obj, "argcat_argument_parser_name"))]
@@ -330,6 +360,7 @@ class ArgCat:
                 level=ArgCatPrintLevel.WARNING, indent=2)
 
     def print_parser_handlers(self) -> None:
+        """Show information of all handlers."""
         if not self._arg_parsers:
             ArgCatPrinter.print("ArgCat does not have any parser.", level=ArgCatPrintLevel.IF_NECESSARY)
             return
@@ -342,6 +373,7 @@ class ArgCat:
             level=ArgCatPrintLevel.IF_NECESSARY)
     
     def print_parsers(self) -> None:
+        """Show information of all parsers."""
         if not self._arg_parsers:
             ArgCatPrinter.print("ArgCat does not have any parser.", level=ArgCatPrintLevel.IF_NECESSARY)
             return
