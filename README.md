@@ -49,6 +49,12 @@ So, (another so, you know, we love to say so) eventually I create this __ArgCat_
 
 Generally speaking, ArgCat allows you to define and config your ArgumentParsers and their arguments in YAML format, and then creates the ArgumentParser instances according to the YAML in the runtime. 
 
+##### Why not just install it before knowing more details :)
+
+```bash
+$ pip install argcat
+```
+
 Below is an example of a YAML file:
 
 ```yaml
@@ -249,7 +255,7 @@ If you encounter any issue or have any question please feel free to open an issu
 
 Phew...
 
-Ok. I think that's all for this README at this point for v0.2.
+Ok. I think that's all for this README at this point for v0.2.1.
 
 ArgCat is good, but not perfect. I will continue to improve it and update this documentation.
 
