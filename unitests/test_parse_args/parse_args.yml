@@ -5,11 +5,12 @@ meta: # Include all essential configurations used for creating a new ArgumentPar
     title: "The subparsers title"
     description: "The subparsers description"
     help: "The subparsers help"
-parsers:
+parsers: 
   main:
     arguments:
       # Declare a positional argument for the main parser.
       -
+        # name_or_flags: ["-n", "--name"] if this is omitted, the argument will be a postional argument.
         # Mainly used for main arguments. If this is set to True, the argument will be filtered out before being passed
         # into subparser's handler. Default value is False.
         # In below case, the argument test will not be passed into any subparser's handler even this test 
