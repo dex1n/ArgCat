@@ -99,8 +99,7 @@ class ArgCatParser:
         parsed_args: Namespace = self._parser.parse_args(args=args, namespace=namespace)
         ArgCatPrinter.print("Parsed args to: {}".format(parsed_args))
         parsed_arguments_dict: Dict = dict(vars(parsed_args))
-        sub_parser_name: str = parsed_arguments_dict[ManifestConstants.SUB_PARSER_NAME]
-        del parsed_arguments_dict[ManifestConstants.SUB_PARSER_NAME]
+        sub_parser_name: str = parsed_arguments_dict.get(ManifestConstants.SUB_PARSER_NAME, None)
         # If the sub parser is needed, remove all arguments from the 
         # namspace belong to the main parser(parent parser) marked IGNORED_BY_SUBPARSER True. 
         # By default, all main parser's arguments will
@@ -108,6 +107,7 @@ class ArgCatParser:
         # input. So, this step is to make sure the arguments input
         # into the handler correctly.
         if sub_parser_name is not None:
+            del parsed_arguments_dict[ManifestConstants.SUB_PARSER_NAME]
             for argument_dict in self._arguments:
                 # 'dest' value is the key of the argument in the 
                 # parsed_arguments_dict.
