@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
 from argcat import ArgCat
-import sys
+#import sys
+#import re
 
 class Foo:
     def __init__(self):
@@ -40,16 +41,23 @@ def main_handler(test):
 
 def main():
     argcat = ArgCat(chatter=False)
-    argcat.load("hello_cat.yml")
-    foo = Foo()
-    foo.value = "new value"
+    #argcat.load("hello_cat.yml")
+    #foo = Foo()
+    #foo.value = "new value"
     # Find handlers in __main__
-    argcat.add_handler_provider(sys.modules['__main__'])
+    #argcat.add_handler_provider(sys.modules['__main__'])
     # Find handlers in Foo
-    argcat.add_handler_provider(foo)
+    #argcat.add_handler_provider(foo)
+    #argcat.print_parsers()
+    #argcat.print_parser_handlers()
+    #argcat.parse_args()
+    
+    arg_recipes = ["   data_file -f/--file filename=\"./__init__.py\""] 
+    
+    argcat.easy_load(arg_recipes)
+    
     argcat.print_parsers()
-    argcat.print_parser_handlers()
-    argcat.parse_args()
+    #argcat.print_parser_handlers()
     
 if __name__ == '__main__':
     main()

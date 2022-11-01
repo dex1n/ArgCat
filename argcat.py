@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
+from distutils.filelist import findall
 import os
 import argparse
 import inspect
+import re
 import yaml
 from pathlib import Path
 from pydoc import locate
@@ -10,9 +12,17 @@ from enum import Enum, unique
 from argparse import ArgumentParser, Namespace, _ArgumentGroup, _MutuallyExclusiveGroup, _SubParsersAction
 from typing import ClassVar, List, Dict, Optional, Callable, Tuple, Any, Union
 
+
 # May not be the best solution for the constants, but it's fine for now.
 # And we don't need ClassVar[str] here because I think all constants' type are pretty clear.
 class ManifestConstants:
+    META = "meta"
+    METAVAR = "metavar"
+    PROG = "prog"
+    DESCRIPTION = "description"
+    TITLE = "title"
+    HELP = "help"
+    NARGS = "nargs"
     SUB_PARSER_NAME = 'sub_parser_name'
     SUBPARSER = 'subparser'
     PARSERS = 'parsers'
@@ -28,10 +38,33 @@ class ManifestConstants:
     GROUP = 'group'
     HANDLERS = 'handlers'
     DEFAULT = 'default'
+    REQUIRED = 'required'
     # Mainly used for main arguments. If this is set to True, the argument will be filtered out before being passed
     # into subparser's handler. Default value is False.
     IGNORED_BY_SUBPARSER = 'ignored_by_subparser'   
 
+
+# Default manifest
+class _ARGUMENT_DEFAULTS_:
+    META = {
+        ManifestConstants.PROG: "Cool program name",
+        ManifestConstants.DESCRIPTION: "Awesome description",
+        ManifestConstants.SUBPARSER: {
+            ManifestConstants.TITLE: "The subparsers title",
+            ManifestConstants.DESCRIPTION: "The subparsers description",
+            ManifestConstants.HELP: "The subparsers help"
+        }
+    }
+    NARGS = "?"
+    TYPE = "str"
+    DEST = "dest"
+    HELP = ""
+    METAVAR = "metavar"
+    PARSERS = {
+        # There is main parser by default
+        ManifestConstants.MAIN: { ManifestConstants.ARGUMENTS: [] }
+    }
+    
 @unique
 class ArgCatPrintLevel(Enum):
     # Print needed by user, for example, in print_parser_handlers()
@@ -186,6 +219,62 @@ class ArgCat:
             ArgCatPrinter.print("Manifest file with path {} cannot be found.".format(manifest_file_path), 
             level=ArgCatPrintLevel.ERROR)
 
+    def _create_default_argument(self) -> Dict:
+        return {
+            ManifestConstants.NAME_OR_FLAGS: None,
+            ManifestConstants.NARGS: _ARGUMENT_DEFAULTS_.NARGS, 
+            ManifestConstants.DEST: _ARGUMENT_DEFAULTS_.DEST, 
+            ManifestConstants.METAVAR: _ARGUMENT_DEFAULTS_.METAVAR,
+            ManifestConstants.TYPE: _ARGUMENT_DEFAULTS_.TYPE,
+            ManifestConstants.HELP: _ARGUMENT_DEFAULTS_.HELP
+        }
+    
+    def _load_arg_recipes(self, arg_recipes: List[str]) -> None:
+        self._manifest_data = {}
+        self._manifest_data[ManifestConstants.META] = _ARGUMENT_DEFAULTS_.META
+        self._manifest_data[ManifestConstants.PARSERS] = _ARGUMENT_DEFAULTS_.PARSERS
+        
+        parsers: Dict = self._manifest_data[ManifestConstants.PARSERS]
+        main_parser: Dict = self._manifest_data[ManifestConstants.PARSERS][ManifestConstants.MAIN]
+        
+        for arg_recipe in arg_recipes:
+            
+            # Find the possible sub parser name from the beginning of the string.
+            # NOTE that re.match() is to find the pattern from the beginning no matter the pattern has "^" or not.
+            sub_parser_name_regex = re.compile(r"^ *(?P<sub_parser_name>[a-zA-Z]\w*)?")
+            sub_parser_name_match = sub_parser_name_regex.match(arg_recipe)
+            
+            # If there is a sub parser name, try to find it or create it in the manifest data.
+            if sub_parser_name_match:
+                sub_parser_name = sub_parser_name_match.group(ManifestConstants.SUB_PARSER_NAME)
+                the_sub_parser = parsers.setdefault(sub_parser_name, { ManifestConstants.ARGUMENTS: [] })
+            else:
+            # if not, add arguments to the default main parser.
+                the_sub_parser = main_parser
+            
+            arguments = the_sub_parser[ManifestConstants.ARGUMENTS]
+            new_argument = self._create_default_argument()
+            
+            arguments_regex = re.compile(" +(\-\D)\/(\-\-\D\w+) +([a-zA-Z]+)(\??)(\=\"([^\"]+)\"|([^\"]+))?")
+            arguments_matches = arguments_regex.findall(arg_recipe)
+            #print(arguments_matches)
+            
+            # A match would be like a tuple below:
+            # ('-f', '--file', 'filename', '', '="./__init__.py"', './__init__.py', '')
+            
+            for match in arguments_matches:
+                new_argument[ManifestConstants.NAME_OR_FLAGS] = [match[0], match[1]]
+                new_argument[ManifestConstants.DEST] = match[2]
+                new_argument[ManifestConstants.METAVAR] = new_argument[ManifestConstants.DEST].upper()
+                new_argument[ManifestConstants.REQUIRED] = not (match[3] == "?")    
+                new_argument[ManifestConstants.DEFAULT] = match[5]
+                
+            #print(new_argument)
+            arguments.append(new_argument)
+        
+        print(self._manifest_data)
+        
+    
     def _create_parsers(self) -> None:
         if not self._manifest_data:
             return
@@ -289,6 +378,37 @@ class ArgCat:
         self._load_manifest(manifest_file_path)
         self._create_parsers()
         ArgCatPrinter.print("Loading DONE. Use print_xx functions for more information.")
+        
+    def easy_load(self, arg_recipes: List[str]) -> None:
+        """Load args recipe
+
+        A arg recipe is a special string in required format represents what you want for the arg.
+        The format is like `^[sub_parser_name]?( -a/--arg dest[?]?(=default_value)?)*` .
+        For example: `data_file -f/--file filename?="./__init__.py"` .
+        `data_file` is the sub parser name.
+        `-f/--file` is the arg name.
+        `filename` is the arg's dest.
+        `?` means this arg is optional.
+        `="./__init__.py"` is the default value of the arg.
+        The arg would be str type by default, as str is the most commonly using type.
+        The metavar would be the upper case of the dest. If the dest is set from the recipe to be upper case, then
+        they would be the same.
+        The nargs would be `?` by default.
+        The help would be the same as the dest.
+        These attributes might be modifiable in the late stage of the 0.3 development I guess.
+        
+        Returns None
+        """
+        
+        if not arg_recipes:
+            ArgCatPrinter.print("No valid Arg Recipes are provided. Quit...")
+            return
+        
+        self._reset()
+        self._load_arg_recipes(arg_recipes)
+        self._create_parsers()
+        ArgCatPrinter.print("Loading DONE. Use print_xx functions for more information.")
+        pass
 
     def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Any:
         """Start to parse args.
