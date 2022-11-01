@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from argcat import ArgCat
-#import sys
+import sys
 #import re
 
 class Foo:
@@ -39,6 +39,11 @@ class Foo:
 def main_handler(test):
     print("main_handler {}".format(test))
 
+
+@ArgCat.handler("data_file")
+def data_file_handler(filename):
+    print("data_file_handler {}".format(filename))
+
 def main():
     argcat = ArgCat(chatter=False)
     #argcat.load("hello_cat.yml")
@@ -55,9 +60,11 @@ def main():
     arg_recipes = ["   data_file -f/--file filename=\"./__init__.py\""] 
     
     argcat.easy_load(arg_recipes)
-    
+    argcat.add_handler_provider(sys.modules['__main__'])
     argcat.print_parsers()
-    #argcat.print_parser_handlers()
+    argcat.print_parser_handlers()
+    
+    argcat.parse_args()
     
 if __name__ == '__main__':
     main()

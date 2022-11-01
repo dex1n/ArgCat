@@ -272,7 +272,7 @@ class ArgCat:
             #print(new_argument)
             arguments.append(new_argument)
         
-        print(self._manifest_data)
+        #print(self._manifest_data)
         
     
     def _create_parsers(self) -> None:
