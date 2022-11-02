@@ -173,10 +173,14 @@ class ArgCat:
             return func
         return decorator_handler
 
-    def __init__(self, chatter=False):
-        """If chatter is True, ArgCat will display verbose prints. Otherwise,
+    def __init__(self, prog_name: str=None, description: str=None, chatter: bool=False):
+        """
+        TODO: UPDATE THIS ONCE ALL THE WORK IS DONE!!!
+        If chatter is True, ArgCat will display verbose prints. Otherwise,
         it will keep silence until the print_* methods are called."""
         self.chatter = chatter
+        self._prog_name = prog_name
+        self._description = description
         ArgCatPrinter.print("Your cute argument parsing helper. >v<")
         self._reset()
 
@@ -232,8 +236,17 @@ class ArgCat:
     
     def _load_arg_recipes(self, arg_recipes: List[str]) -> None:
         self._manifest_data = {}
+        
+        # Load default data.
         self._manifest_data[ManifestConstants.META] = _ARGUMENT_DEFAULTS_.META
         self._manifest_data[ManifestConstants.PARSERS] = _ARGUMENT_DEFAULTS_.PARSERS
+        
+        # Use the setting ones if necessary.
+        if self._prog_name is not None:
+            self._manifest_data[ManifestConstants.META][ManifestConstants.PROG] = self._prog_name
+            
+        if self._description is not None:
+            self._manifest_data[ManifestConstants.META][ManifestConstants.DESCRIPTION] = self._description
         
         parsers: Dict = self._manifest_data[ManifestConstants.PARSERS]
         main_parser: Dict = self._manifest_data[ManifestConstants.PARSERS][ManifestConstants.MAIN]
