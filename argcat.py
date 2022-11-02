@@ -49,11 +49,12 @@ class _ARGUMENT_DEFAULTS_:
     META = {
         ManifestConstants.PROG: "Cool program name",
         ManifestConstants.DESCRIPTION: "Awesome description",
-        ManifestConstants.SUBPARSER: {
-            ManifestConstants.TITLE: "The subparsers title",
-            ManifestConstants.DESCRIPTION: "The subparsers description",
-            ManifestConstants.HELP: "The subparsers help"
-        }
+        # In easy mode, we don't use these to make the help texts clean.
+        # ManifestConstants.SUBPARSER: {
+        #     ManifestConstants.TITLE: "The subparsers title",
+        #     ManifestConstants.DESCRIPTION: "The subparsers description",
+        #     ManifestConstants.HELP: "The subparsers help"
+        # }
     }
     NARGS = "?"
     TYPE = "str"
@@ -283,13 +284,17 @@ class ArgCat:
         
         # Main parser created on data from _manifest_data
         main_parser_meta_dict: Dict = dict(meta_dict)
-        del main_parser_meta_dict[ManifestConstants.SUBPARSER]
+        # In easy mode, ManifestConstants.SUBPARSER does not exist.
+        if ManifestConstants.SUBPARSER in main_parser_meta_dict:
+            del main_parser_meta_dict[ManifestConstants.SUBPARSER]
         main_parser: ArgumentParser = argparse.ArgumentParser(**main_parser_meta_dict)
         
         parsers_dict: Dict = self._manifest_data[ManifestConstants.PARSERS]
         
         # Make meta dict for creating sub parsers by add_subparsers() 
-        sub_parser_meta_dict: Dict = meta_dict[ManifestConstants.SUBPARSER]
+        # In easy mode, ManifestConstants.SUBPARSER value is None and to make sure add_subparsers() work in this case,
+        # we use an empty dict as sub_parser_meta_dict.
+        sub_parser_meta_dict: Dict = meta_dict.get(ManifestConstants.SUBPARSER, {})
         sub_parser_meta_dict[ManifestConstants.DEST] = ManifestConstants.SUB_PARSER_NAME # reserved 
         
         argument_subparsers: Optional[_SubParsersAction] = None
