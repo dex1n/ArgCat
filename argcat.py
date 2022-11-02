@@ -280,22 +280,26 @@ class ArgCat:
             return
         ArgCatPrinter.print("Creating parsers ...")
         meta_dict: Dict = self._manifest_data[ManifestConstants.META]
+        
+        # Main parser created on data from _manifest_data
         main_parser_meta_dict: Dict = dict(meta_dict)
         del main_parser_meta_dict[ManifestConstants.SUBPARSER]
-
-        # Main parser
         main_parser: ArgumentParser = argparse.ArgumentParser(**main_parser_meta_dict)
+        
         parsers_dict: Dict = self._manifest_data[ManifestConstants.PARSERS]
-
-        # Sub parsers
+        
+        # Make meta dict for creating sub parsers by add_subparsers() 
         sub_parser_meta_dict: Dict = meta_dict[ManifestConstants.SUBPARSER]
         sub_parser_meta_dict[ManifestConstants.DEST] = ManifestConstants.SUB_PARSER_NAME # reserved 
+        
         argument_subparsers: Optional[_SubParsersAction] = None
 
         for parser_name, parser_dict in parsers_dict.items():
             if parser_dict is None or len(parser_dict) == 0:
                 continue
-            # Make meta dict
+            # Make a meta dict which can be unpacked and binded into main_parser.add_subparsers.add_parser()
+            # Since ManifestConstants.ARGUMENTS and ManifestConstants.ARGUMENT_GROUPS are added for ArgCat and not known
+            # by add_parser(), so we delete them here.
             parser_meta_dict = dict(parser_dict)
             if ManifestConstants.ARGUMENTS in parser_meta_dict:
                 del parser_meta_dict[ManifestConstants.ARGUMENTS]
