@@ -256,25 +256,37 @@ class ArgCat:
             arguments = the_sub_parser[ManifestConstants.ARGUMENTS]
             new_argument = self._create_default_argument()
             
-            arguments_regex = re.compile(" +(\-\D)\/(\-\-\D\w+) +([a-zA-Z]+)(\??)(\=\"([^\"]+)\"|([^\"]+))?")
+            # 目前这个正则除了 choice, action 和 help 都覆盖到了
+            # A recipe would be like:
+            # sub_parser_name -a/--arg nargs>dest:type?=default
+            # For example, for a recipe: " data_file -f/--file 1>filename?=\"./__init__.py\" ",
+            # a match for argument part would be like the tuple below:
+            # ('-f', '--file', '?', 'filename', ':str', '?',        '="./__init__.py"', './__init__.py', '')
+            # NAME_OR_FLAGS,   NARGS,   DEST,      TYPE, REQUIRED,                          DEFAULT 
+            arguments_regex = re.compile(" +(\-\D)\/(\-\-\D\w+) +([?*+]|\d+)>([a-zA-Z]+)(:\w+)?(\??)(\=\"([^\"]+)\"|([^\"]+))?")
             arguments_matches = arguments_regex.findall(arg_recipe)
-            #print(arguments_matches)
-            
-            # A match would be like a tuple below:
-            # ('-f', '--file', 'filename', '', '="./__init__.py"', './__init__.py', '')
+            print(arguments_matches)
             
             for match in arguments_matches:
                 new_argument[ManifestConstants.NAME_OR_FLAGS] = [match[0], match[1]]
-                new_argument[ManifestConstants.DEST] = match[2]
-                new_argument[ManifestConstants.METAVAR] = new_argument[ManifestConstants.DEST].upper()
-                new_argument[ManifestConstants.REQUIRED] = not (match[3] == "?")    
-                new_argument[ManifestConstants.DEFAULT] = match[5]
                 
-            #print(new_argument)
+                if match[2] in ['?','*','+']:
+                    new_argument[ManifestConstants.NARGS] = match[2]
+                else: # NARGS is a int number.
+                    new_argument[ManifestConstants.NARGS] = int(match[2])
+                
+                new_argument[ManifestConstants.DEST] = match[3]
+                new_argument[ManifestConstants.METAVAR] = new_argument[ManifestConstants.DEST].upper()
+                # If there is a type, use it without the first charactor ":".
+                if match[4]:
+                   new_argument[ManifestConstants.TYPE] = match[4][1:] 
+                new_argument[ManifestConstants.REQUIRED] = not (match[4] == "?")    
+                new_argument[ManifestConstants.DEFAULT] = match[7]
+                
+            print(new_argument)
             arguments.append(new_argument)
         
         #print(self._manifest_data)
-        
     
     def _create_parsers(self) -> None:
         if not self._manifest_data:
@@ -390,15 +402,17 @@ class ArgCat:
         
     def easy_load(self, arg_recipes: List[str]) -> None:
         """Load args recipe
-
+        TODO: UPDATE THIS!!!
         A arg recipe is a special string in required format represents what you want for the arg.
-        The format is like `^[sub_parser_name]?( -a/--arg dest[?]?(=default_value)?)*` .
-        For example: `data_file -f/--file filename?="./__init__.py"` .
+        The format is like `^[sub_parser_name]?( -a/--arg nargs>dest(:type)?[?]?(=default_value)?)*` .
+        For example: `data_file -f/--file ?>filename:str?="./__init__.py"` .
         `data_file` is the sub parser name.
         `-f/--file` is the arg name.
         `filename` is the arg's dest.
         `?` means this arg is optional.
         `="./__init__.py"` is the default value of the arg.
+        `?>` means nargs is `?`.
+        :str means the type is `str`.
         The arg would be str type by default, as str is the most commonly using type.
         The metavar would be the upper case of the dest. If the dest is set from the recipe to be upper case, then
         they would be the same.

@@ -57,14 +57,15 @@ def main():
     #argcat.print_parser_handlers()
     #argcat.parse_args()
     
-    arg_recipes = ["   data_file -f/--file filename=\"./__init__.py\""] 
+    #arg_recipes = ["   data_file -f/--file ?>filename:str?=\"./__init__.py\""] 
+    arg_recipes = ["   data_file -f/--file 1>filename?=\"./__init__.py\""] 
     
     argcat.easy_load(arg_recipes)
     argcat.add_handler_provider(sys.modules['__main__'])
     argcat.print_parsers()
     argcat.print_parser_handlers()
     
-    argcat.parse_args()
+    #argcat.parse_args()
     
 if __name__ == '__main__':
     main()
