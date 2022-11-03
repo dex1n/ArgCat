@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from argcat import ArgCat
+from argcat import ArgCat, ArgCatD
 import sys
 #import re
 
@@ -45,7 +45,7 @@ def data_file_handler(filename):
     print("data_file_handler {}".format(filename))
 
 def main():
-    argcat = ArgCat(chatter=False)
+    argcat = ArgCatD(chatter=False)
     #argcat.load("hello_cat.yml")
     #foo = Foo()
     #foo.value = "new value"

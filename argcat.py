@@ -107,7 +107,7 @@ class ArgCatParser:
         self._arguments: List[Dict] = arguments
         self._groups: Optional[Dict] = groups
         self._handler_func: Optional[Callable] = handler_func
-
+    
     @property
     def name(self) -> str:
         return self._name
@@ -173,14 +173,11 @@ class ArgCat:
             return func
         return decorator_handler
 
-    def __init__(self, prog_name: str=None, description: str=None, chatter: bool=False):
+    def __init__(self, chatter: bool=False):
         """
-        TODO: UPDATE THIS ONCE ALL THE WORK IS DONE!!!
         If chatter is True, ArgCat will display verbose prints. Otherwise,
         it will keep silence until the print_* methods are called."""
         self.chatter = chatter
-        self._prog_name = prog_name
-        self._description = description
         ArgCatPrinter.print("Your cute argument parsing helper. >v<")
         self._reset()
 
@@ -224,83 +221,6 @@ class ArgCat:
             ArgCatPrinter.print("Manifest file with path {} cannot be found.".format(manifest_file_path), 
             level=ArgCatPrintLevel.ERROR)
 
-    def _create_default_argument(self) -> Dict:
-        return {
-            ManifestConstants.NAME_OR_FLAGS: None,
-            ManifestConstants.NARGS: _ARGUMENT_DEFAULTS_.NARGS, 
-            ManifestConstants.DEST: _ARGUMENT_DEFAULTS_.DEST, 
-            ManifestConstants.METAVAR: _ARGUMENT_DEFAULTS_.METAVAR,
-            ManifestConstants.TYPE: _ARGUMENT_DEFAULTS_.TYPE,
-            ManifestConstants.HELP: _ARGUMENT_DEFAULTS_.HELP
-        }
-    
-    def _load_arg_recipes(self, arg_recipes: List[str]) -> None:
-        self._manifest_data = {}
-        
-        # Load default data.
-        self._manifest_data[ManifestConstants.META] = _ARGUMENT_DEFAULTS_.META
-        self._manifest_data[ManifestConstants.PARSERS] = _ARGUMENT_DEFAULTS_.PARSERS
-        
-        # Use the setting ones if necessary.
-        if self._prog_name is not None:
-            self._manifest_data[ManifestConstants.META][ManifestConstants.PROG] = self._prog_name
-            
-        if self._description is not None:
-            self._manifest_data[ManifestConstants.META][ManifestConstants.DESCRIPTION] = self._description
-        
-        parsers: Dict = self._manifest_data[ManifestConstants.PARSERS]
-        main_parser: Dict = self._manifest_data[ManifestConstants.PARSERS][ManifestConstants.MAIN]
-        
-        for arg_recipe in arg_recipes:
-            
-            # Find the possible sub parser name from the beginning of the string.
-            # NOTE that re.match() is to find the pattern from the beginning no matter the pattern has "^" or not.
-            sub_parser_name_regex = re.compile(r"^ *(?P<sub_parser_name>[a-zA-Z]\w*)?")
-            sub_parser_name_match = sub_parser_name_regex.match(arg_recipe)
-            
-            # If there is a sub parser name, try to find it or create it in the manifest data.
-            if sub_parser_name_match:
-                sub_parser_name = sub_parser_name_match.group(ManifestConstants.SUB_PARSER_NAME)
-                the_sub_parser = parsers.setdefault(sub_parser_name, { ManifestConstants.ARGUMENTS: [] })
-            else:
-            # if not, add arguments to the default main parser.
-                the_sub_parser = main_parser
-            
-            arguments = the_sub_parser[ManifestConstants.ARGUMENTS]
-            new_argument = self._create_default_argument()
-            
-            # 目前这个正则除了 choice, action 和 help 都覆盖到了
-            # A recipe would be like:
-            # sub_parser_name -a/--arg nargs>dest:type?=default
-            # For example, for a recipe: " data_file -f/--file 1>filename?=\"./__init__.py\" ",
-            # a match for argument part would be like the tuple below:
-            # ('-f', '--file', '?', 'filename', ':str', '?',        '="./__init__.py"', './__init__.py', '')
-            # NAME_OR_FLAGS,   NARGS,   DEST,      TYPE, REQUIRED,                          DEFAULT 
-            arguments_regex = re.compile(" +(\-\D)\/(\-\-\D\w+) +([?*+]|\d+)>([a-zA-Z]+)(:\w+)?(\??)(\=\"([^\"]+)\"|([^\"]+))?")
-            arguments_matches = arguments_regex.findall(arg_recipe)
-            print(arguments_matches)
-            
-            for match in arguments_matches:
-                new_argument[ManifestConstants.NAME_OR_FLAGS] = [match[0], match[1]]
-                
-                if match[2] in ['?','*','+']:
-                    new_argument[ManifestConstants.NARGS] = match[2]
-                else: # NARGS is a int number.
-                    new_argument[ManifestConstants.NARGS] = int(match[2])
-                
-                new_argument[ManifestConstants.DEST] = match[3]
-                new_argument[ManifestConstants.METAVAR] = new_argument[ManifestConstants.DEST].upper()
-                # If there is a type, use it without the first charactor ":".
-                if match[4]:
-                   new_argument[ManifestConstants.TYPE] = match[4][1:] 
-                new_argument[ManifestConstants.REQUIRED] = not (match[4] == "?")    
-                new_argument[ManifestConstants.DEFAULT] = match[7]
-                
-            print(new_argument)
-            arguments.append(new_argument)
-        
-        #print(self._manifest_data)
-    
     def _create_parsers(self) -> None:
         if not self._manifest_data:
             return
@@ -413,39 +333,6 @@ class ArgCat:
         self._create_parsers()
         ArgCatPrinter.print("Loading DONE. Use print_xx functions for more information.")
         
-    def easy_load(self, arg_recipes: List[str]) -> None:
-        """Load args recipe
-        TODO: UPDATE THIS!!!
-        A arg recipe is a special string in required format represents what you want for the arg.
-        The format is like `^[sub_parser_name]?( -a/--arg nargs>dest(:type)?[?]?(=default_value)?)*` .
-        For example: `data_file -f/--file ?>filename:str?="./__init__.py"` .
-        `data_file` is the sub parser name.
-        `-f/--file` is the arg name.
-        `filename` is the arg's dest.
-        `?` means this arg is optional.
-        `="./__init__.py"` is the default value of the arg.
-        `?>` means nargs is `?`.
-        :str means the type is `str`.
-        The arg would be str type by default, as str is the most commonly using type.
-        The metavar would be the upper case of the dest. If the dest is set from the recipe to be upper case, then
-        they would be the same.
-        The nargs would be `?` by default.
-        The help would be the same as the dest.
-        These attributes might be modifiable in the late stage of the 0.3 development I guess.
-        
-        Returns None
-        """
-        
-        if not arg_recipes:
-            ArgCatPrinter.print("No valid Arg Recipes are provided. Quit...")
-            return
-        
-        self._reset()
-        self._load_arg_recipes(arg_recipes)
-        self._create_parsers()
-        ArgCatPrinter.print("Loading DONE. Use print_xx functions for more information.")
-        pass
-
     def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Any:
         """Start to parse args.
 
@@ -540,3 +427,128 @@ class ArgCat:
                 dest = arg.get(ManifestConstants.DEST, None)
                 name = arg.get(ManifestConstants.NAME_OR_FLAGS, dest)
                 ArgCatPrinter.print("{} -> {}".format(name, dest), indent=2, level=ArgCatPrintLevel.IF_NECESSARY)
+                
+                
+                
+class ArgCatD(ArgCat):
+    def __init__(self, prog_name: str = None, description: str = None, chatter: bool = False):
+        """
+        TODO: UPDATE THIS ONCE ALL THE WORK IS DONE!!!
+        """
+        self._prog_name = prog_name
+        self._description = description
+        super().__init__(chatter)               
+
+    def _create_default_argument(self) -> Dict:
+        return {
+            ManifestConstants.NAME_OR_FLAGS: None,
+            ManifestConstants.NARGS: _ARGUMENT_DEFAULTS_.NARGS, 
+            ManifestConstants.DEST: _ARGUMENT_DEFAULTS_.DEST, 
+            ManifestConstants.METAVAR: _ARGUMENT_DEFAULTS_.METAVAR,
+            ManifestConstants.TYPE: _ARGUMENT_DEFAULTS_.TYPE,
+            ManifestConstants.HELP: _ARGUMENT_DEFAULTS_.HELP
+        }
+    
+    def _load_arg_recipes(self, arg_recipes: List[str]) -> None:
+        self._manifest_data = {}
+        
+        # Load default data.
+        self._manifest_data[ManifestConstants.META] = _ARGUMENT_DEFAULTS_.META
+        self._manifest_data[ManifestConstants.PARSERS] = _ARGUMENT_DEFAULTS_.PARSERS
+        
+        # Use the setting ones if necessary.
+        if self._prog_name is not None:
+            self._manifest_data[ManifestConstants.META][ManifestConstants.PROG] = self._prog_name
+            
+        if self._description is not None:
+            self._manifest_data[ManifestConstants.META][ManifestConstants.DESCRIPTION] = self._description
+        
+        parsers: Dict = self._manifest_data[ManifestConstants.PARSERS]
+        main_parser: Dict = self._manifest_data[ManifestConstants.PARSERS][ManifestConstants.MAIN]
+        
+        for arg_recipe in arg_recipes:
+            
+            # Find the possible sub parser name from the beginning of the string.
+            # NOTE that re.match() is to find the pattern from the beginning no matter the pattern has "^" or not.
+            sub_parser_name_regex = re.compile(r"^ *(?P<sub_parser_name>[a-zA-Z]\w*)?")
+            sub_parser_name_match = sub_parser_name_regex.match(arg_recipe)
+            
+            # If there is a sub parser name, try to find it or create it in the manifest data.
+            if sub_parser_name_match:
+                sub_parser_name = sub_parser_name_match.group(ManifestConstants.SUB_PARSER_NAME)
+                the_sub_parser = parsers.setdefault(sub_parser_name, { ManifestConstants.ARGUMENTS: [] })
+            else:
+            # if not, add arguments to the default main parser.
+                the_sub_parser = main_parser
+            
+            arguments = the_sub_parser[ManifestConstants.ARGUMENTS]
+            new_argument = self._create_default_argument()
+            
+            # 目前这个正则除了 choice, action 和 help 都覆盖到了
+            # A recipe would be like:
+            # sub_parser_name -a/--arg nargs>dest:type?=default
+            # For example, for a recipe: " data_file -f/--file 1>filename?=\"./__init__.py\" ",
+            # a match for argument part would be like the tuple below:
+            # ('-f', '--file', '?', 'filename', ':str', '?',        '="./__init__.py"', './__init__.py', '')
+            # NAME_OR_FLAGS,   NARGS,   DEST,      TYPE, REQUIRED,                          DEFAULT 
+            arguments_regex = re.compile(" +(\-\D)\/(\-\-\D\w+) +([?*+]|\d+)>([a-zA-Z]+)(:\w+)?(\??)(\=\"([^\"]+)\"|([^\"]+))?")
+            arguments_matches = arguments_regex.findall(arg_recipe)
+            print(arguments_matches)
+            
+            for match in arguments_matches:
+                new_argument[ManifestConstants.NAME_OR_FLAGS] = [match[0], match[1]]
+                
+                if match[2] in ['?','*','+']:
+                    new_argument[ManifestConstants.NARGS] = match[2]
+                else: # NARGS is a int number.
+                    new_argument[ManifestConstants.NARGS] = int(match[2])
+                
+                new_argument[ManifestConstants.DEST] = match[3]
+                new_argument[ManifestConstants.METAVAR] = new_argument[ManifestConstants.DEST].upper()
+                # If there is a type, use it without the first charactor ":".
+                if match[4]:
+                   new_argument[ManifestConstants.TYPE] = match[4][1:] 
+                new_argument[ManifestConstants.REQUIRED] = not (match[4] == "?")    
+                new_argument[ManifestConstants.DEFAULT] = match[7]
+                
+            print(new_argument)
+            arguments.append(new_argument)
+        
+        #print(self._manifest_data)
+
+    def easy_load(self, arg_recipes: List[str]) -> None:
+        """Load args recipe
+        TODO: UPDATE THIS!!!
+        A arg recipe is a special string in required format represents what you want for the arg.
+        The format is like `^[sub_parser_name]?( -a/--arg nargs>dest(:type)?[?]?(=default_value)?)*` .
+        For example: `data_file -f/--file ?>filename:str?="./__init__.py"` .
+        `data_file` is the sub parser name.
+        `-f/--file` is the arg name.
+        `filename` is the arg's dest.
+        `?` means this arg is optional.
+        `="./__init__.py"` is the default value of the arg.
+        `?>` means nargs is `?`.
+        :str means the type is `str`.
+        The arg would be str type by default, as str is the most commonly using type.
+        The metavar would be the upper case of the dest. If the dest is set from the recipe to be upper case, then
+        they would be the same.
+        The nargs would be `?` by default.
+        The help would be the same as the dest.
+        These attributes might be modifiable in the late stage of the 0.3 development I guess.
+        
+        Returns None
+        """
+        
+        if not arg_recipes:
+            ArgCatPrinter.print("No valid Arg Recipes are provided. Quit...")
+            return
+        
+        self._reset()
+        self._load_arg_recipes(arg_recipes)
+        self._create_parsers()
+        ArgCatPrinter.print("Loading DONE. Use print_xx functions for more information.")
+
+
+
+
+
