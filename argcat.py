@@ -157,6 +157,124 @@ class ArgCatParser:
             sub_parser_name = self._name
         return sub_parser_name, parsed_arguments_dict
 
+class ArgCatBuilder:
+    def __init__(self, on_build_done: Callable) -> None:
+        self._manifest_data = {}
+        self._on_build_done = on_build_done
+    
+    # For with statement: enter is before `with` body.
+    def __enter__(self):
+        # Init data with default values.
+        self._manifest_data[ManifestConstants.META] = _ARGUMENT_DEFAULTS_.META
+        self._manifest_data[ManifestConstants.PARSERS] = _ARGUMENT_DEFAULTS_.PARSERS
+        return self
+    
+    # For with statement: exit is after `with` body.
+    def __exit__(self, type, value, traceback):
+        self._on_build_done(self._manifest_data)
+    
+    def _create_default_argument(self) -> Dict:
+        return {
+            ManifestConstants.NAME_OR_FLAGS: None,
+            ManifestConstants.NARGS: _ARGUMENT_DEFAULTS_.NARGS, 
+            ManifestConstants.DEST: _ARGUMENT_DEFAULTS_.DEST, 
+            ManifestConstants.METAVAR: _ARGUMENT_DEFAULTS_.METAVAR,
+            ManifestConstants.TYPE: _ARGUMENT_DEFAULTS_.TYPE,
+            ManifestConstants.HELP: _ARGUMENT_DEFAULTS_.HELP
+        }  
+    
+    def _select_parser_by_name(self, parser_name: str) -> None:
+        parsers: Dict = self._manifest_data[ManifestConstants.PARSERS]
+        # Select the parser by name.
+        # It may be a 'main' parser or any other sub parser.
+        the_parser = parsers.setdefault(parser_name, { ManifestConstants.ARGUMENTS: [] })
+        return the_parser
+    
+    def set_prog_info(self, prog_name: Optional[str], description: Optional[str]) -> None:
+        if prog_name is not None:
+            self._manifest_data[ManifestConstants.META][ManifestConstants.PROG] = prog_name
+        if description is not None:
+            self._manifest_data[ManifestConstants.META][ManifestConstants.DESCRIPTION] = description
+    
+    def add_group(self, name: str, parser_name: str = ManifestConstants.MAIN, description: Optional[str] = None, 
+                  is_mutually_exclusive: bool = False) -> None:
+        
+        the_parser = self._select_parser_by_name(parser_name)
+        the_groups = the_parser.setdefault(ManifestConstants.ARGUMENT_GROUPS, {})
+        new_group = the_groups.get(name, {})
+        
+        if new_group:
+            ArgCatPrinter.print(f"Failed to add argument group `{name}` because it has already been there.", 
+                                level=ArgCatPrintLevel.WARNING)
+            return
+        
+        new_group[ManifestConstants.DESCRIPTION] = description
+        new_group[ManifestConstants.IS_MUTUALLY_EXCLUSIVE] = is_mutually_exclusive
+        
+        the_groups[name] = new_group
+        
+    
+    def add_argument(self, recipe: str, parser_name: str = ManifestConstants.MAIN, help: Optional[str] = None, 
+                     arg_type: str = _ARGUMENT_DEFAULTS_.TYPE, choices: Optional[Container] = None, 
+                     action: Optional[str] = None, const: Optional[str] = None, 
+                     group_name: Optional[str] = None) -> None:
+        
+        the_parser = self._select_parser_by_name(parser_name)
+        
+        arguments = the_parser[ManifestConstants.ARGUMENTS]
+        new_argument = self._create_default_argument()
+
+        # 目前这个正则除了 choice, action 和 help 都覆盖到了
+        # A recipe would be like:
+        # `-a/--arg nargs>dest:type?=default`
+        # For example, for a recipe: " -f/--file 1>filename?=\"./__init__.py\" ",
+        # a match for argument part would be like the tuple below:
+        # ('-f', '--file', '?', 'filename', ':str', '?',        '="./__init__.py"', './__init__.py', '')
+        # NAME_OR_FLAGS,   NARGS,   DEST,      TYPE, REQUIRED,                          DEFAULT 
+        arguments_regex = \
+        re.compile("(\-\D)\/(\-\-\D\w+) +([?*+]|\d+)>([a-zA-Z]+)(:\w+)?(\??)(\=\"([^\"]+)\"|([^\"]+))?")
+        arguments_matches = arguments_regex.findall(recipe)
+        #print(arguments_matches)
+        
+        for match in arguments_matches:
+            new_argument[ManifestConstants.NAME_OR_FLAGS] = [match[0], match[1]]
+            
+            if match[2] in ['?','*','+']:
+                new_argument[ManifestConstants.NARGS] = match[2]
+            else: # NARGS is a int number.
+                new_argument[ManifestConstants.NARGS] = int(match[2])
+            
+            new_argument[ManifestConstants.DEST] = match[3]
+            new_argument[ManifestConstants.METAVAR] = new_argument[ManifestConstants.DEST].upper()
+            
+            # If a arg_type is passed, use it ignoring the possible one in recipe.
+            if arg_type:
+                new_argument[ManifestConstants.TYPE] = arg_type
+            elif match[4]:
+            # Otherwise, use the type string in the recipe without the first charactor ":".
+                new_argument[ManifestConstants.TYPE] = match[4][1:] 
+                
+            new_argument[ManifestConstants.REQUIRED] = not (match[5] == "?")    
+            new_argument[ManifestConstants.DEFAULT] = match[7]
+            
+            # Addtional settings.
+            if help:
+                new_argument[ManifestConstants.HELP] = help
+            
+            if choices:
+                new_argument[ManifestConstants.CHOICES] = choices
+                
+            if action:
+                new_argument[ManifestConstants.ACTION] = action
+            
+            if const:
+                new_argument[ManifestConstants.CONST] = const
+            
+            if group_name:
+                new_argument[ManifestConstants.GROUP] = group_name
+            
+        arguments.append(new_argument)
+        
 class ArgCat:
     @staticmethod
     def handler(parser_name):
@@ -336,6 +454,24 @@ class ArgCat:
         self._create_parsers()
         ArgCatPrinter.print("Loading DONE. Use print_xx functions for more information.")
         
+    def build(self) -> ArgCatBuilder:
+        """Build arguments by an ArgCatBuilder.
+
+        Use `with ArgCat.build() as builder:` and ArgCatBuilder's methods for setting parsers and arguments.
+
+        This `with` statement is freaking crazy. Wow, I LOVE Python! 
+
+        Returns an ArgCatBuilder.
+        """
+        self._reset()
+        
+        def on_build_done(manifest_data):
+            self._manifest_data = manifest_data
+            self._create_parsers()
+            ArgCatPrinter.print("Loading DONE. Use print_xx functions for more information.")
+        
+        return ArgCatBuilder(on_build_done)
+        
     def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Any:
         """Start to parse args.
 
@@ -431,344 +567,3 @@ class ArgCat:
                 name = arg.get(ManifestConstants.NAME_OR_FLAGS, dest)
                 ArgCatPrinter.print("{} -> {}".format(name, dest), indent=2, level=ArgCatPrintLevel.IF_NECESSARY)
     # TODO: For default main handler: use this ArgumentParser.print_usage to print usage.            
-                
-class ArgCatD(ArgCat):
-    def __init__(self, prog_name: Optional[str] = None, description: Optional[str] = None, chatter: bool = False):
-        """
-        TODO: UPDATE THIS ONCE ALL THE WORK IS DONE!!!
-        """
-        super().__init__(chatter)               
-        self._initialize(prog_name, description)
-
-    def _create_default_argument(self) -> Dict:
-        return {
-            ManifestConstants.NAME_OR_FLAGS: None,
-            ManifestConstants.NARGS: _ARGUMENT_DEFAULTS_.NARGS, 
-            ManifestConstants.DEST: _ARGUMENT_DEFAULTS_.DEST, 
-            ManifestConstants.METAVAR: _ARGUMENT_DEFAULTS_.METAVAR,
-            ManifestConstants.TYPE: _ARGUMENT_DEFAULTS_.TYPE,
-            ManifestConstants.HELP: _ARGUMENT_DEFAULTS_.HELP
-        }
-    
-    def _initialize(self, prog_name: Optional[str], description: Optional[str]) -> None:
-        self._reset()
-        self._prog_name = prog_name
-        self._description = description
-        
-        # Load default data.
-        self._manifest_data[ManifestConstants.META] = _ARGUMENT_DEFAULTS_.META
-        self._manifest_data[ManifestConstants.PARSERS] = _ARGUMENT_DEFAULTS_.PARSERS
-        
-        # Use the setting ones if necessary.
-        if self._prog_name is not None:
-            self._manifest_data[ManifestConstants.META][ManifestConstants.PROG] = self._prog_name
-            
-        if self._description is not None:
-            self._manifest_data[ManifestConstants.META][ManifestConstants.DESCRIPTION] = self._description
-        
-    
-    def _load_arg_recipes(self, arg_recipes: List[str]) -> None:
-        # Load default data.
-        self._manifest_data[ManifestConstants.META] = _ARGUMENT_DEFAULTS_.META
-        self._manifest_data[ManifestConstants.PARSERS] = _ARGUMENT_DEFAULTS_.PARSERS
-        
-        # Use the setting ones if necessary.
-        if self._prog_name is not None:
-            self._manifest_data[ManifestConstants.META][ManifestConstants.PROG] = self._prog_name
-            
-        if self._description is not None:
-            self._manifest_data[ManifestConstants.META][ManifestConstants.DESCRIPTION] = self._description
-        
-        parsers: Dict = self._manifest_data[ManifestConstants.PARSERS]
-        main_parser: Dict = self._manifest_data[ManifestConstants.PARSERS][ManifestConstants.MAIN]
-        
-        for arg_recipe in arg_recipes:
-            
-            # Find the possible sub parser name from the beginning of the string.
-            # NOTE that re.match() is to find the pattern from the beginning no matter the pattern has "^" or not.
-            sub_parser_name_regex = re.compile(r"^ *(?P<sub_parser_name>[a-zA-Z]\w*)?")
-            sub_parser_name_match = sub_parser_name_regex.match(arg_recipe)
-            
-            # If there is a sub parser name, try to find it or create it in the manifest data.
-            if sub_parser_name_match:
-                sub_parser_name = sub_parser_name_match.group(ManifestConstants.SUB_PARSER_NAME)
-                the_sub_parser = parsers.setdefault(sub_parser_name, { ManifestConstants.ARGUMENTS: [] })
-            else:
-            # if not, add arguments to the default main parser.
-                the_sub_parser = main_parser
-            
-            arguments = the_sub_parser[ManifestConstants.ARGUMENTS]
-            new_argument = self._create_default_argument()
-            
-            # 目前这个正则除了 choice, action 和 help 都覆盖到了
-            # A recipe would be like:
-            # sub_parser_name -a/--arg nargs>dest:type?=default
-            # For example, for a recipe: " data_file -f/--file 1>filename?=\"./__init__.py\" ",
-            # a match for argument part would be like the tuple below:
-            # ('-f', '--file', '?', 'filename', ':str', '?',        '="./__init__.py"', './__init__.py', '')
-            # NAME_OR_FLAGS,   NARGS,   DEST,      TYPE, REQUIRED,                          DEFAULT 
-            arguments_regex = re.compile(" +(\-\D)\/(\-\-\D\w+) +([?*+]|\d+)>([a-zA-Z]+)(:\w+)?(\??)(\=\"([^\"]+)\"|([^\"]+))?")
-            arguments_matches = arguments_regex.findall(arg_recipe)
-            print(arguments_matches)
-            
-            for match in arguments_matches:
-                new_argument[ManifestConstants.NAME_OR_FLAGS] = [match[0], match[1]]
-                
-                if match[2] in ['?','*','+']:
-                    new_argument[ManifestConstants.NARGS] = match[2]
-                else: # NARGS is a int number.
-                    new_argument[ManifestConstants.NARGS] = int(match[2])
-                
-                new_argument[ManifestConstants.DEST] = match[3]
-                new_argument[ManifestConstants.METAVAR] = new_argument[ManifestConstants.DEST].upper()
-                # If there is a type, use it without the first charactor ":".
-                if match[4]:
-                   new_argument[ManifestConstants.TYPE] = match[4][1:] 
-                new_argument[ManifestConstants.REQUIRED] = not (match[4] == "?")    
-                new_argument[ManifestConstants.DEFAULT] = match[7]
-                
-            print(new_argument)
-            arguments.append(new_argument)
-        
-        #print(self._manifest_data)
-
-    def _select_parser_by_name(self, parser_name: str) -> None:
-        parsers: Dict = self._manifest_data[ManifestConstants.PARSERS]
-        # Select the parser by name.
-        # It may be a 'main' parser or any other sub parser.
-        the_parser = parsers.setdefault(parser_name, { ManifestConstants.ARGUMENTS: [] })
-        return the_parser
-    
-    def easy_load(self, arg_recipes: List[str]) -> None:
-        """Load args recipe
-        TODO: UPDATE THIS!!!
-        A arg recipe is a special string in required format represents what you want for the arg.
-        The format is like `^[sub_parser_name]?( -a/--arg nargs>dest(:type)?[?]?(=default_value)?)*` .
-        For example: `data_file -f/--file ?>filename:str?="./__init__.py"` .
-        `data_file` is the sub parser name.
-        `-f/--file` is the arg name.
-        `filename` is the arg's dest.
-        `?` means this arg is optional.
-        `="./__init__.py"` is the default value of the arg.
-        `?>` means nargs is `?`.
-        :str means the type is `str`.
-        The arg would be str type by default, as str is the most commonly using type.
-        The metavar would be the upper case of the dest. If the dest is set from the recipe to be upper case, then
-        they would be the same.
-        The nargs would be `?` by default.
-        The help would be the same as the dest.
-        These attributes might be modifiable in the late stage of the 0.3 development I guess.
-        
-        Returns None
-        """
-        
-        if not arg_recipes:
-            ArgCatPrinter.print("No valid Arg Recipes are provided. Quit...")
-            return
-        
-        self._reset()
-        self._load_arg_recipes(arg_recipes)
-        self._create_parsers()
-        ArgCatPrinter.print("Loading DONE. Use print_xx functions for more information.")
-
-    
-    def add_group(self, name: str, parser_name: str = ManifestConstants.MAIN, description: Optional[str] = None, 
-                  is_mutually_exclusive: bool = False) -> None:
-        
-        the_parser = self._select_parser_by_name(parser_name)
-        
-        the_groups = the_parser.setdefault(ManifestConstants.ARGUMENT_GROUPS, {})
-        
-        new_group = the_groups.get(name, {})
-        
-        if new_group:
-            ArgCatPrinter.print(f"Failed to add argument group `{name}` because it has already been there.", 
-                                level=ArgCatPrintLevel.WARNING)
-            return
-        
-        new_group[ManifestConstants.DESCRIPTION] = description
-        new_group[ManifestConstants.IS_MUTUALLY_EXCLUSIVE] = is_mutually_exclusive
-        
-        the_groups[name] = new_group
-        
-    
-    def add_argument(self, recipe: str, parser_name: str = ManifestConstants.MAIN, help: Optional[str] = None, 
-                     arg_type: str = _ARGUMENT_DEFAULTS_.TYPE, choices: Optional[Container] = None, 
-                     action: Optional[str] = None, const: Optional[str] = None, 
-                     group_name: Optional[str] = None) -> None:
-        
-        the_parser = self._select_parser_by_name(parser_name)
-        
-        arguments = the_parser[ManifestConstants.ARGUMENTS]
-        new_argument = self._create_default_argument()
-
-        # 目前这个正则除了 choice, action 和 help 都覆盖到了
-        # A recipe would be like:
-        # `-a/--arg nargs>dest:type?=default`
-        # For example, for a recipe: " -f/--file 1>filename?=\"./__init__.py\" ",
-        # a match for argument part would be like the tuple below:
-        # ('-f', '--file', '?', 'filename', ':str', '?',        '="./__init__.py"', './__init__.py', '')
-        # NAME_OR_FLAGS,   NARGS,   DEST,      TYPE, REQUIRED,                          DEFAULT 
-        arguments_regex = \
-        re.compile("(\-\D)\/(\-\-\D\w+) +([?*+]|\d+)>([a-zA-Z]+)(:\w+)?(\??)(\=\"([^\"]+)\"|([^\"]+))?")
-        arguments_matches = arguments_regex.findall(recipe)
-        #print(arguments_matches)
-        
-        for match in arguments_matches:
-            new_argument[ManifestConstants.NAME_OR_FLAGS] = [match[0], match[1]]
-            
-            if match[2] in ['?','*','+']:
-                new_argument[ManifestConstants.NARGS] = match[2]
-            else: # NARGS is a int number.
-                new_argument[ManifestConstants.NARGS] = int(match[2])
-            
-            new_argument[ManifestConstants.DEST] = match[3]
-            new_argument[ManifestConstants.METAVAR] = new_argument[ManifestConstants.DEST].upper()
-            
-            # If a arg_type is passed, use it ignoring the possible one in recipe.
-            if arg_type:
-                new_argument[ManifestConstants.TYPE] = arg_type
-            elif match[4]:
-            # Otherwise, use the type string in the recipe without the first charactor ":".
-                new_argument[ManifestConstants.TYPE] = match[4][1:] 
-                
-            new_argument[ManifestConstants.REQUIRED] = not (match[5] == "?")    
-            new_argument[ManifestConstants.DEFAULT] = match[7]
-            
-            # Addtional settings.
-            if help:
-                new_argument[ManifestConstants.HELP] = help
-            
-            if choices:
-                new_argument[ManifestConstants.CHOICES] = choices
-                
-            if action:
-                new_argument[ManifestConstants.ACTION] = action
-            
-            if const:
-                new_argument[ManifestConstants.CONST] = const
-            
-            if group_name:
-                new_argument[ManifestConstants.GROUP] = group_name
-            
-        arguments.append(new_argument)
-
-
-    def build(self, builder: Callable) -> None:
-        self._reset()
-        self._build_manager = ArgCatBuildManager(self._manifest_data)
-        builder(self._build_manager)
-        self._create_parsers()
-    
-
-class ArgCatBuildManager:
-    def __init__(self, manifest_data: dict) -> None:
-        self._manifest_data = manifest_data
-        
-        # Load default data.
-        self._manifest_data[ManifestConstants.META] = _ARGUMENT_DEFAULTS_.META
-        self._manifest_data[ManifestConstants.PARSERS] = _ARGUMENT_DEFAULTS_.PARSERS
-        
-    def _create_default_argument(self) -> Dict:
-        return {
-            ManifestConstants.NAME_OR_FLAGS: None,
-            ManifestConstants.NARGS: _ARGUMENT_DEFAULTS_.NARGS, 
-            ManifestConstants.DEST: _ARGUMENT_DEFAULTS_.DEST, 
-            ManifestConstants.METAVAR: _ARGUMENT_DEFAULTS_.METAVAR,
-            ManifestConstants.TYPE: _ARGUMENT_DEFAULTS_.TYPE,
-            ManifestConstants.HELP: _ARGUMENT_DEFAULTS_.HELP
-        }  
-    
-    def _select_parser_by_name(self, parser_name: str) -> None:
-        parsers: Dict = self._manifest_data[ManifestConstants.PARSERS]
-        # Select the parser by name.
-        # It may be a 'main' parser or any other sub parser.
-        the_parser = parsers.setdefault(parser_name, { ManifestConstants.ARGUMENTS: [] })
-        return the_parser
-    
-    def set_prog_info(self, prog_name: Optional[str], description: Optional[str]) -> None:
-        if prog_name is not None:
-            self._manifest_data[ManifestConstants.META][ManifestConstants.PROG] = prog_name
-        if description is not None:
-            self._manifest_data[ManifestConstants.META][ManifestConstants.DESCRIPTION] = description
-    
-    def add_group(self, name: str, parser_name: str = ManifestConstants.MAIN, description: Optional[str] = None, 
-                  is_mutually_exclusive: bool = False) -> None:
-        
-        the_parser = self._select_parser_by_name(parser_name)
-        
-        the_groups = the_parser.setdefault(ManifestConstants.ARGUMENT_GROUPS, {})
-        
-        new_group = the_groups.get(name, {})
-        
-        if new_group:
-            ArgCatPrinter.print(f"Failed to add argument group `{name}` because it has already been there.", 
-                                level=ArgCatPrintLevel.WARNING)
-            return
-        
-        new_group[ManifestConstants.DESCRIPTION] = description
-        new_group[ManifestConstants.IS_MUTUALLY_EXCLUSIVE] = is_mutually_exclusive
-        
-        the_groups[name] = new_group
-        
-    
-    def add_argument(self, recipe: str, parser_name: str = ManifestConstants.MAIN, help: Optional[str] = None, 
-                     arg_type: str = _ARGUMENT_DEFAULTS_.TYPE, choices: Optional[Container] = None, 
-                     action: Optional[str] = None, const: Optional[str] = None, 
-                     group_name: Optional[str] = None) -> None:
-        
-        the_parser = self._select_parser_by_name(parser_name)
-        
-        arguments = the_parser[ManifestConstants.ARGUMENTS]
-        new_argument = self._create_default_argument()
-
-        # 目前这个正则除了 choice, action 和 help 都覆盖到了
-        # A recipe would be like:
-        # `-a/--arg nargs>dest:type?=default`
-        # For example, for a recipe: " -f/--file 1>filename?=\"./__init__.py\" ",
-        # a match for argument part would be like the tuple below:
-        # ('-f', '--file', '?', 'filename', ':str', '?',        '="./__init__.py"', './__init__.py', '')
-        # NAME_OR_FLAGS,   NARGS,   DEST,      TYPE, REQUIRED,                          DEFAULT 
-        arguments_regex = \
-        re.compile("(\-\D)\/(\-\-\D\w+) +([?*+]|\d+)>([a-zA-Z]+)(:\w+)?(\??)(\=\"([^\"]+)\"|([^\"]+))?")
-        arguments_matches = arguments_regex.findall(recipe)
-        #print(arguments_matches)
-        
-        for match in arguments_matches:
-            new_argument[ManifestConstants.NAME_OR_FLAGS] = [match[0], match[1]]
-            
-            if match[2] in ['?','*','+']:
-                new_argument[ManifestConstants.NARGS] = match[2]
-            else: # NARGS is a int number.
-                new_argument[ManifestConstants.NARGS] = int(match[2])
-            
-            new_argument[ManifestConstants.DEST] = match[3]
-            new_argument[ManifestConstants.METAVAR] = new_argument[ManifestConstants.DEST].upper()
-            
-            # If a arg_type is passed, use it ignoring the possible one in recipe.
-            if arg_type:
-                new_argument[ManifestConstants.TYPE] = arg_type
-            elif match[4]:
-            # Otherwise, use the type string in the recipe without the first charactor ":".
-                new_argument[ManifestConstants.TYPE] = match[4][1:] 
-                
-            new_argument[ManifestConstants.REQUIRED] = not (match[5] == "?")    
-            new_argument[ManifestConstants.DEFAULT] = match[7]
-            
-            # Addtional settings.
-            if help:
-                new_argument[ManifestConstants.HELP] = help
-            
-            if choices:
-                new_argument[ManifestConstants.CHOICES] = choices
-                
-            if action:
-                new_argument[ManifestConstants.ACTION] = action
-            
-            if const:
-                new_argument[ManifestConstants.CONST] = const
-            
-            if group_name:
-                new_argument[ManifestConstants.GROUP] = group_name
-            
-        arguments.append(new_argument)

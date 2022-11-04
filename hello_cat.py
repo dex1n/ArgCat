@@ -1,8 +1,7 @@
 #!/usr/bin/python
 
-from argcat import ArgCat, ArgCatD
+from argcat import ArgCat
 import sys
-#import re
 
 class Foo:
     def __init__(self):
@@ -44,41 +43,18 @@ def data_file_handler(filename):
     print("data_file_handler {}".format(filename))
 
 def main():
-    argcatd = ArgCatD(chatter=False)
-    #argcat.load("hello_cat.yml")
-    #foo = Foo()
-    #foo.value = "new value"
-    # Find handlers in __main__
-    #argcat.add_handler_provider(sys.modules['__main__'])
-    # Find handlers in Foo
-    #argcat.add_handler_provider(foo)
-    #argcat.print_parsers()
-    #argcat.print_parser_handlers()
-    #argcat.parse_args()
+    argcat = ArgCat(chatter=False)
     
-    #arg_recipes = ["   data_file -f/--file ?>filename:str?=\"./__init__.py\""] 
-    #arg_recipes = ["   data_file -f/--file 1>filename?=\"./__init__.py\""] 
+    with argcat.build() as builder:
+        builder.add_group(name='test_group', parser_name='haha', description="a test group", is_mutually_exclusive=True)
+        builder.add_argument(parser_name='haha', recipe="-f/--file 1>filename?=\"./__init__.py\"", arg_type='int', 
+                             group_name='test_group')
     
-    #argcatd.add_group(name='test_group', parser_name='haha', description="a test group", is_mutually_exclusive=True)
+    argcat.add_handler_provider(sys.modules['__main__'])
+    argcat.print_parsers()
+    argcat.print_parser_handlers()
+    argcat.parse_args()
     
-    #argcatd.add_argument(parser_name='haha', recipe="-f/--file 1>filename?=\"./__init__.py\"", arg_type='int', group_name='test_group')
-    
-    #argcat.easy_load(arg_recipes)
-    #argcatd.add_handler_provider(sys.modules['__main__'])
-    #argcatd.print_parsers()
-    #argcatd.print_parser_handlers()
-    
-    #argcatd.parse_args()
-    
-    def the_builder(build_man):
-        build_man.add_group(name='test_group', parser_name='haha', description="a test group", is_mutually_exclusive=True)
-        build_man.add_argument(parser_name='haha', recipe="-f/--file 1>filename?=\"./__init__.py\"", arg_type='int', group_name='test_group')
-    
-    argcatd.build(the_builder)
-    
-    argcatd.add_handler_provider(sys.modules['__main__'])
-    argcatd.print_parsers()
-    argcatd.print_parser_handlers()
     
 if __name__ == '__main__':
     main()
