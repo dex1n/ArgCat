@@ -131,6 +131,10 @@ class ArgCatParser:
     def groups(self) -> Optional[Dict]:
         return self._groups
 
+    @property
+    def parser(self) -> ArgumentParser:
+        return self._parser
+    
     def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Tuple[str, Dict]:
         # Call the main parser's parse_args() to parse the arguments input.
         parsed_args: Namespace = self._parser.parse_args(args=args, namespace=namespace)
@@ -442,7 +446,17 @@ class ArgCat:
 
         if ManifestConstants.MAIN not in self._arg_parsers:
             self._arg_parsers[ManifestConstants.MAIN] = ArgCatParser(parser=main_parser, name=ManifestConstants.MAIN, arguments=[])
-
+        
+        # Set a default main handler in case user does not provide any handler.
+        self._arg_parsers[ManifestConstants.MAIN].handler_func = self._default_main_handler
+        
+    def _default_main_handler(self, **kwargs):
+        ArgCatPrinter.print("The default `main` handler is triggered to print simple usage only. " + 
+                            "Please set your `main` handler if necessary.", level=ArgCatPrintLevel.WARNING)
+        main_parser = self._arg_parsers.get(ManifestConstants.MAIN, None)
+        if main_parser:
+            main_parser.parser.print_usage()
+    
     def load(self, manifest_file_path: str) -> None:
         """Load manifest from file at path.
 

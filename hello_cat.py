@@ -34,7 +34,7 @@ class Foo:
         print("info_handler with detail: {}".format(detail))
 
 # Regular function
-@ArgCat.handler("main")
+@ArgCat.handler("maina")
 def main_handler():
     test = "main"
     print("main_handler {}".format(test))
@@ -44,7 +44,7 @@ def data_file_handler(filename):
     print("data_file_handler {}".format(filename))
 
 def main():
-    argcat = ArgCat(chatter=True)
+    argcat = ArgCat(chatter=False)
     
     with argcat.build() as builder:
         builder.add_group(name='test_group', parser_name='haha', description="a test group", is_mutually_exclusive=True)
