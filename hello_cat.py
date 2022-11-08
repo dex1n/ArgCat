@@ -35,7 +35,8 @@ class Foo:
 
 # Regular function
 @ArgCat.handler("main")
-def main_handler(test):
+def main_handler():
+    test = "main"
     print("main_handler {}".format(test))
 
 @ArgCat.handler("data_file")

@@ -144,7 +144,6 @@ class ArgCatParser:
         # input. So, this step is to make sure the arguments input
         # into the handler correctly.
         if sub_parser_name is not None:
-            del parsed_arguments_dict[ManifestConstants.SUB_PARSER_NAME]
             for argument_dict in self._arguments:
                 # 'dest' value is the key of the argument in the 
                 # parsed_arguments_dict.
@@ -155,6 +154,9 @@ class ArgCatParser:
                     del parsed_arguments_dict[dest]
         else:
             sub_parser_name = self._name
+        # ManifestConstants.SUB_PARSER_NAME is not needed for the handlers.
+        # So, delete it from the argument dict.
+        del parsed_arguments_dict[ManifestConstants.SUB_PARSER_NAME]
         return sub_parser_name, parsed_arguments_dict
 
 class ArgCatBuilder:
