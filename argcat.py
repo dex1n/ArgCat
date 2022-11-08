@@ -190,7 +190,7 @@ class ArgCatBuilder:
         the_parser = parsers.setdefault(parser_name, { ManifestConstants.ARGUMENTS: [] })
         return the_parser
     
-    def set_prog_info(self, prog_name: Optional[str], description: Optional[str]) -> None:
+    def set_prog_info(self, prog_name: Optional[str] = None, description: Optional[str] = None) -> None:
         if prog_name is not None:
             self._manifest_data[ManifestConstants.META][ManifestConstants.PROG] = prog_name
         if description is not None:
@@ -465,6 +465,7 @@ class ArgCat:
         """
         self._reset()
         
+        # Create the parsers once the build is done.
         def on_build_done(manifest_data):
             self._manifest_data = manifest_data
             self._create_parsers()

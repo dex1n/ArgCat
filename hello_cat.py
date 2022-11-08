@@ -43,7 +43,7 @@ def data_file_handler(filename):
     print("data_file_handler {}".format(filename))
 
 def main():
-    argcat = ArgCat(chatter=False)
+    argcat = ArgCat(chatter=True)
     
     with argcat.build() as builder:
         builder.add_group(name='test_group', parser_name='haha', description="a test group", is_mutually_exclusive=True)
@@ -51,8 +51,8 @@ def main():
                              group_name='test_group')
     
     argcat.add_handler_provider(sys.modules['__main__'])
-    argcat.print_parsers()
-    argcat.print_parser_handlers()
+    #argcat.print_parsers()
+    #argcat.print_parser_handlers()
     argcat.parse_args()
     
     
