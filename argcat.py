@@ -197,14 +197,61 @@ class ArgCatBuilder:
         return the_parser
     
     def set_prog_info(self, prog_name: Optional[str] = None, description: Optional[str] = None) -> None:
+        """Set basic information of the program.
+        
+        Quite straightfoward method to use. Note that if there is one valid prog_name or description exists and user 
+        inputs None for one or both of them, the previous valid value would not be replaced with the None(s). So, 
+        actually, these properties can only be blank but not be None by this method.
+        
+        Returns None.
+        """
         if prog_name is not None:
             self._manifest_data[ManifestConstants.META][ManifestConstants.PROG] = prog_name
         if description is not None:
             self._manifest_data[ManifestConstants.META][ManifestConstants.DESCRIPTION] = description
     
+    def set_sub_parser_info(self, title: Optional[str] = None, description: Optional[str] = None, 
+                            help: Optional[str] = None) -> None:
+        """Create and set sub parser info.
+        
+        If user call this, we are assuming user want to create and set sub parser information, even if user input None
+        thing.
+        
+        Note that if there is one valid title or description or help exists and user 
+        inputs None for one or all of them, the previous valid value would not be replaced with the None(s). So, 
+        actually, these properties can only be blank but not be None by this method.
+        
+        Returns None.
+        """
+        sub_parser_info = self._manifest_data[ManifestConstants.META].get(ManifestConstants.SUBPARSER, {})
+        if title is not None:
+            sub_parser_info[ManifestConstants.TITLE] = title
+        if description is not None:
+            sub_parser_info[ManifestConstants.DESCRIPTION] = description
+        if help is not None:
+            sub_parser_info[ManifestConstants.HELP] = help
+        self._manifest_data[ManifestConstants.META][ManifestConstants.SUBPARSER] = sub_parser_info
+    
+    def remove_sub_parser_info(self) -> None:
+        """Remove sub parser information.
+        
+        Since sub parser information is not necessary for a program, we set the info None by default and allow user to 
+        remove all of this.
+        
+        Returns None.
+        """
+        sub_parser_info = self._manifest_data[ManifestConstants.META].get(ManifestConstants.SUBPARSER, None)
+        if sub_parser_info is not None:
+            del self._manifest_data[ManifestConstants.META][ManifestConstants.SUBPARSER]
+    
     def add_group(self, name: str, parser_name: str = ManifestConstants.MAIN, description: Optional[str] = None, 
                   is_mutually_exclusive: bool = False) -> None:
+        """Add group for arguments.
         
+        Quite straightforward and self-explained method to add group.
+        
+        Returns None.
+        """
         the_parser = self._select_parser_by_name(parser_name)
         the_groups = the_parser.setdefault(ManifestConstants.ARGUMENT_GROUPS, {})
         new_group = the_groups.get(name, {})
@@ -224,6 +271,15 @@ class ArgCatBuilder:
                      arg_type: str = _ARGUMENT_DEFAULTS_.TYPE, choices: Optional[Container] = None, 
                      action: Optional[str] = None, const: Optional[str] = None, 
                      group_name: Optional[str] = None) -> None:
+        """Add a new argument for `main` parser or a sub parser.
+        
+        Quite straightforward and self-explained method to add argument. 
+        
+        Note if there is no sub parser created for the parser_name, a new sub parser will be created for this argument.
+        By contrast, the group name of the group must be added by add_group() before this if the group name is not None.
+        
+        Returns None.
+        """
         
         the_parser = self._select_parser_by_name(parser_name)
         
@@ -303,7 +359,8 @@ class ArgCat:
     def __init__(self, chatter: bool=False):
         """
         If chatter is True, ArgCat will display verbose prints. Otherwise,
-        it will keep silence until the print_* methods are called."""
+        it will keep silence until the print_* methods are called.
+        """
         self.chatter = chatter
         ArgCatPrinter.print("Your cute argument parsing helper. >v<")
         self._reset()
