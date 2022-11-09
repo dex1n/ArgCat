@@ -1,4 +1,4 @@
-from argcat import ArgCat, ManifestConstants
+from argcat import ArgCat, _ManifestConstants
 from ..argcat_unit_test import ArgCatUnitTest
 
 class TestLoad(ArgCatUnitTest):
@@ -16,7 +16,7 @@ class TestLoad(ArgCatUnitTest):
         self.assertEqual(main_parser.name, 'main', f"Incorrect parser name {main_parser.name} for 'main' parser")
         self.assertEqual(len(main_parser.arguments), 1, "Incorrect size of arguments for 'main' parser.")
         main_parser_arguments = main_parser.arguments
-        self.assertEqual(main_parser_arguments[0].get(ManifestConstants.DEST, None), 'test', "Incorrect argument DEST for 'main' parser.")
+        self.assertEqual(main_parser_arguments[0].get(_ManifestConstants.DEST, None), 'test', "Incorrect argument DEST for 'main' parser.")
         # -- init parser
         self.assertIsNotNone(self._argcat._arg_parsers['init'], "'init' parser missing.")
         init_parser = self._argcat._arg_parsers['init']
