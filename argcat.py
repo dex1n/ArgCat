@@ -80,11 +80,11 @@ class _ArgCatPrintLevel(Enum):
     ERROR = 3
     def __str__(self):
         if self.value in [0, 1]:
-            return "[NORMAL]: "
+            return "[ LOG ]: "
         elif self.value == 2:
-            return "*WARNING*: "
+            return "[ *WARNING* ]: "
         elif self.value == 3:
-            return "#ERROR#: "
+            return "[ #ERROR# ]: "
 
 class _ArgCatPrinter:
     filter_level: ClassVar[_ArgCatPrintLevel] = _ArgCatPrintLevel.VERBOSE
@@ -145,7 +145,7 @@ class _ArgCatParser:
     def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Tuple[str, Dict]:
         # Call the main parser's parse_args() to parse the arguments input.
         parsed_args: Namespace = self._parser.parse_args(args=args, namespace=namespace)
-        _ArgCatPrinter.print("Parsed args to: {}".format(parsed_args))
+        _ArgCatPrinter.print("Parsed args result: `{}`.".format(parsed_args))
         parsed_arguments_dict: Dict = dict(vars(parsed_args))
         sub_parser_name: str = parsed_arguments_dict.get(_ManifestConstants.SUB_PARSER_NAME, None)
         # If the sub parser is needed, remove all arguments from the 
@@ -277,7 +277,7 @@ class _ArgCatBuilder:
         
     
     def add_argument(self, recipe: str, parser_name: str = _ManifestConstants.MAIN, help: Optional[str] = None, 
-                     arg_type: str = _ARGUMENT_DEFAULTS_.TYPE, choices: Optional[Container] = None, 
+                     arg_type: str = _ARGUMENT_DEFAULTS_.TYPE, default: Any = None, choices: Optional[Container] = None, 
                      action: Optional[str] = None, const: Optional[str] = None, 
                      group_name: Optional[str] = None) -> None:
         """Add a new argument for `main` parser or a sub parser.
@@ -291,21 +291,18 @@ class _ArgCatBuilder:
         """
         
         the_parser = self._select_parser_by_name(parser_name)
-        
         arguments = the_parser[_ManifestConstants.ARGUMENTS]
         new_argument = self._create_default_argument()
 
-        # 目前这个正则除了 choice, action 和 help 都覆盖到了
+        # 目前这个正则除了 default, choice, action 和 help 都覆盖到了
         # A recipe would be like:
-        # `-a/--arg nargs>dest:type?=default`
-        # For example, for a recipe: " -f/--file 1>filename?=\"./__init__.py\" ",
+        # `-a/--arg nargs>dest:type?`
+        # For example, for a recipe: "-f/--file 1>filename:str?",
         # a match for argument part would be like the tuple below:
-        # ('-f', '--file', '?', 'filename', ':str', '?',        '="./__init__.py"', './__init__.py', '')
-        # NAME_OR_FLAGS,   NARGS,   DEST,      TYPE, REQUIRED,                          DEFAULT 
-        arguments_regex = \
-        re.compile("(\-\D)\/(\-\-\D\w+) +([?*+]|\d+)>([a-zA-Z]+)(:\w+)?(\??)(\=\"([^\"]+)\"|([^\"]+))?")
+        # ('-f', '--file',  '?',     'filename',     ':str',     '?',)
+        #  NAME_OR_FLAGS,   NARGS,      DEST,         TYPE,    REQUIRED,                         
+        arguments_regex = re.compile("(\-\D)\/(\-\-\D\w+) +([?*+]|\d+)>([a-zA-Z]+)(:\w+)?(\??)")
         arguments_matches = arguments_regex.findall(recipe)
-        #print(arguments_matches)
         
         for match in arguments_matches:
             new_argument[_ManifestConstants.NAME_OR_FLAGS] = [match[0], match[1]]
@@ -325,8 +322,10 @@ class _ArgCatBuilder:
             # Otherwise, use the type string in the recipe without the first charactor ":".
                 new_argument[_ManifestConstants.TYPE] = match[4][1:] 
                 
-            new_argument[_ManifestConstants.REQUIRED] = not (match[5] == "?")    
-            new_argument[_ManifestConstants.DEFAULT] = match[7]
+            new_argument[_ManifestConstants.REQUIRED] = not (match[5] == "?")
+            
+            if default is not None:
+                new_argument[_ManifestConstants.DEFAULT] = default
             
             # Addtional settings.
             if help:
@@ -396,7 +395,7 @@ class ArgCat:
         self._manifest_data: Optional[Dict] = {}
 
     def _load_manifest(self, manifest_file_path: str) -> None:
-        _ArgCatPrinter.print("Loading manifest file: {} ...".format(manifest_file_path))
+        _ArgCatPrinter.print(f"Loading manifest file: `{manifest_file_path}` ...")
         resolved_file_path: str = str(Path(manifest_file_path).resolve())
         if os.path.exists(resolved_file_path):
             with open(resolved_file_path) as f:
@@ -404,15 +403,15 @@ class ArgCat:
                     self._manifest_data = yaml.safe_load(f)
                 except yaml.YAMLError as exc:
                     self._manifest_data = None
-                    _ArgCatPrinter.print("Manifest file with path {} failed to load for exception: {}."
+                    _ArgCatPrinter.print("Manifest file with path `{}` failed to load for exception: `{}`."
                     .format(resolved_file_path, exc), level=_ArgCatPrintLevel.ERROR)
                 finally:
                     if not self._manifest_data:
                         _ArgCatPrinter \
-                        .print(f"Load empty manifest data from the given manifest file {manifest_file_path}.", 
+                        .print(f"Load empty manifest data from the given manifest file `{manifest_file_path}`.", 
                         level=_ArgCatPrintLevel.WARNING)
         else:
-            _ArgCatPrinter.print("Manifest file with path {} cannot be found.".format(manifest_file_path), 
+            _ArgCatPrinter.print("Manifest file with path `{}` cannot be found.".format(manifest_file_path), 
             level=_ArgCatPrintLevel.ERROR)
 
     def _create_parsers(self) -> None:
@@ -518,12 +517,12 @@ class ArgCat:
         if _ManifestConstants.MAIN not in self._arg_parsers:
             self._arg_parsers[_ManifestConstants.MAIN] = _ArgCatParser(parser=main_parser, name=_ManifestConstants.MAIN, arguments=[])
         
-        # Set a default main handler in case user does not provide any handler.
+        # A very private way to set a default main handler in case user does not provide any handler.
         self._arg_parsers[_ManifestConstants.MAIN].handler_func = self._default_main_handler
         
     def _default_main_handler(self, **kwargs):
         _ArgCatPrinter.print("The default `main` handler is triggered to print simple usage only. " + 
-                            "Please set your `main` handler if necessary.", level=_ArgCatPrintLevel.WARNING)
+                            "Please set your `main` handler if necessary.", level=_ArgCatPrintLevel.VERBOSE)
         main_parser = self._arg_parsers.get(_ManifestConstants.MAIN, None)
         if main_parser:
             main_parser.parser.print_usage()
@@ -552,11 +551,12 @@ class ArgCat:
         """
         self._reset()
         
+        _ArgCatPrinter.print(f"Building ...")
         # Create the parsers once the build is done.
         def on_build_done(manifest_data):
             self._manifest_data = manifest_data
             self._create_parsers()
-            _ArgCatPrinter.print("Loading DONE. Use print_xx functions for more information.")
+            _ArgCatPrinter.print("Building DONE. Use print_xx functions for more information.")
         
         return _ArgCatBuilder(on_build_done)
         
@@ -570,6 +570,7 @@ class ArgCat:
         The latter one returns a Namespace, but ArgCat returns the result from handler since 
         ArgCat has taken care of parsing the raw Namespace from ArgumentParser.
         """
+        _ArgCatPrinter.print("Parsing args ...")
         # Call the main parser's parse_args() to parse the arguments input.
         sub_parser_name, parsed_arguments_dict = self._arg_parsers[_ManifestConstants.MAIN].parse_args(args=args, 
         namespace=namespace)
@@ -577,7 +578,7 @@ class ArgCat:
         handler_func = parser.handler_func
         if handler_func is not None:
             try:
-                _ArgCatPrinter.print("Handler {} is handling \'{}\' with args: {}"
+                _ArgCatPrinter.print("Handler `{}` is handling `{}` with args: {} ..."
                 .format(handler_func, sub_parser_name, parsed_arguments_dict))
                 result = handler_func(**parsed_arguments_dict)
             # Catch all exception to print the actual exception raised in the handler besides
@@ -604,37 +605,29 @@ class ArgCat:
 
         Returns None.
         """
-        _ArgCatPrinter.print("Setting handlers from provider: \'{}\' ...".format(handler_provider))
+        _ArgCatPrinter.print(f"Setting handlers from provider: `{handler_provider}` ...")
         all_handler_func_dicts: List[Dict] = [{'name': name, 'func': obj} for name, obj in 
         inspect.getmembers(handler_provider) if ((inspect.ismethod(obj) or inspect.isfunction(obj)) and hasattr(obj, "argcat_argument_parser_name"))]
         # The functions retrieved will be in alphabet order. So, if there are method/functions with duplicate names, 
         # the first one in the sequence will be added and the other ones will be discarded.
         if not all_handler_func_dicts:
             _ArgCatPrinter.print(f"The handler provider '{handler_provider}' does not have any handler. Skip ...", 
-            level=_ArgCatPrintLevel.VERBOSE, indent=1)
+            level=_ArgCatPrintLevel.WARNING)
             return
         for func_dict in all_handler_func_dicts:
             func = func_dict['func']
             func_name = func_dict['name']
             parser_name = func.argcat_argument_parser_name
-            parser = self._arg_parsers.get(parser_name, None)
-            if parser:
-                # If there are multiple parser handlers being set to one parser, only set the first one.
-                if not parser.handler_func:
-                    parser.handler_func = func
-                else:
-                    _ArgCatPrinter.print(f"Multiple handlers for one parser '{parser_name}'.", 
-                    level=_ArgCatPrintLevel.WARNING)
-            else:
-                _ArgCatPrinter.print(f"Unknown parser '{parser_name}' to set with handler '{func_name}'.", 
-                level=_ArgCatPrintLevel.WARNING)
+            self.add_parser_handler(parser_name=parser_name, handler=func, handler_name=func_name)
 
     def add_main_module_as_handler_provider(self) -> None:
         """ A convenient method to add main module as a handler provider."""
         self.add_handler_provider(sys.modules['__main__'])
     
-    def add_parser_handler(self, parser_name: str, handler: Callable) -> None:
-        handler_name = handler.__name__
+    def add_parser_handler(self, parser_name: str, handler: Callable, handler_name: Optional[str] = None) -> None:
+        """ A flexible way to add handler for a specific parser. """
+        if handler_name is None:
+            handler_name = handler.__name__
         parser = self._arg_parsers.get(parser_name, None)
         if parser:
             if not parser.handler_func:
@@ -644,8 +637,8 @@ class ArgCat:
                 parser_require_parameters = set(parser.dests)
                 if handler_parameters == parser_require_parameters:
                     parser.handler_func = handler
-                    _ArgCatPrinter.print(f"Added handler `{handler_name}{func_sig}` for the parser `{parser_name}`",
-                                         level=_ArgCatPrintLevel.IF_NECESSARY)
+                    _ArgCatPrinter.print(f"Added handler `{handler_name}{func_sig}` for the parser `{parser_name}`.",
+                                         level=_ArgCatPrintLevel.VERBOSE)
                 else:
                     parser_require_parameters_str = functools.reduce(lambda a, b: f"{a}, {b}", parser_require_parameters)
                     _ArgCatPrinter.print(f"Provided handler `{handler_name}{func_sig}` does not meet the " + 
@@ -653,10 +646,10 @@ class ArgCat:
                                          f"`({parser_require_parameters_str})`.", 
                                          level=_ArgCatPrintLevel.WARNING)
             else:
-                _ArgCatPrinter.print(f"Multiple handlers for one parser '{parser_name}'.", 
+                _ArgCatPrinter.print(f"Multiple handlers for one parser `{parser_name}`.", 
                 level=_ArgCatPrintLevel.WARNING)
         else:
-            _ArgCatPrinter.print(f"Unknown parser '{parser_name}' to set with handler '{handler_name}'.", 
+            _ArgCatPrinter.print(f"Unknown parser `{parser_name}` to set with handler `{handler_name}`.", 
             level=_ArgCatPrintLevel.WARNING)
     
     def print_parser_handlers(self) -> None:
