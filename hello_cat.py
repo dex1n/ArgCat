@@ -50,8 +50,17 @@ def main():
         builder.add_group(name='test_group', parser_name='haha', description="a test group", is_mutually_exclusive=True)
         builder.add_argument(parser_name='haha', recipe="-f/--file 1>filename?=\"./__init__.py\"", arg_type='int', 
                              group_name='test_group')
+        builder.add_argument(parser_name='haha', recipe="-t/--type 1>type?", arg_type='int', group_name='test_group')
     
     argcat.add_handler_provider(sys.modules['__main__'])
+    
+    def test(filename: str, type):
+        pass
+    
+    argcat.add_parser_handler('haha', test)
+    
+    
+    
     #argcat.print_parsers()
     #argcat.print_parser_handlers()
     argcat.parse_args()

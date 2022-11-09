@@ -5,6 +5,8 @@ import argparse
 import inspect
 import re
 import yaml
+import sys
+import functools
 from pathlib import Path
 from pydoc import locate
 from enum import Enum, unique
@@ -78,11 +80,11 @@ class _ArgCatPrintLevel(Enum):
     ERROR = 3
     def __str__(self):
         if self.value in [0, 1]:
-            return ""
+            return "[NORMAL]: "
         elif self.value == 2:
-            return "WARNING: "
+            return "*WARNING*: "
         elif self.value == 3:
-            return "ERROR: "
+            return "#ERROR#: "
 
 class _ArgCatPrinter:
     filter_level: ClassVar[_ArgCatPrintLevel] = _ArgCatPrintLevel.VERBOSE
@@ -103,11 +105,12 @@ class _ArgCatPrinter:
         print(final_msg)
 
 class _ArgCatParser:
-    def __init__(self, parser: ArgumentParser, name: str, arguments: List[Dict], groups: Optional[Dict] = None, 
+    def __init__(self, parser: ArgumentParser, name: str, arguments: List[Dict], dests: List[str], groups: Optional[Dict] = None, 
     handler_func: Optional[Callable] = None):
         self._parser: ArgumentParser = parser
         self._name: str = name
         self._arguments: List[Dict] = arguments
+        self._dests = dests
         self._groups: Optional[Dict] = groups
         self._handler_func: Optional[Callable] = handler_func
     
@@ -119,6 +122,10 @@ class _ArgCatParser:
     def arguments(self) -> List[Dict]:
         return self._arguments
 
+    @property
+    def dests(self) -> List[str]:
+        return self._dests
+    
     @property
     def handler_func(self) -> Optional[Callable]:
         return self._handler_func
@@ -475,6 +482,7 @@ class ArgCat:
                 parser_argument_groups_dict = None
             # Add arguments into this new parser
             parser_arguments_list = parser_dict.get(_ManifestConstants.ARGUMENTS, [])   # might be None
+            dests = []  # Collect dests through the loop for later handler binding check.
             for argument_dict in parser_arguments_list:
                 name_or_flags: Optional[List] = argument_dict.get(_ManifestConstants.NAME_OR_FLAGS, None)
                 argument_meta_dict = dict(argument_dict)
@@ -500,9 +508,12 @@ class ArgCat:
                     object_to_add_argument.add_argument(*name_or_flags, **argument_meta_dict)
                 else: # Suppose it's str by default. If it's not, let it crash.
                     object_to_add_argument.add_argument(**argument_meta_dict)
+                dests.append(argument_meta_dict[_ManifestConstants.DEST])
             # Add a new ArgCatPartser with None handler_func    
-            self._arg_parsers[parser_name] = _ArgCatParser(parser=new_parser, name=parser_name, arguments=parser_arguments_list, 
-            groups=parser_argument_groups_dict)
+            self._arg_parsers[parser_name] = _ArgCatParser(parser=new_parser, name=parser_name, 
+                                                           arguments=parser_arguments_list, 
+                                                           dests=dests,
+                                                           groups=parser_argument_groups_dict)
 
         if _ManifestConstants.MAIN not in self._arg_parsers:
             self._arg_parsers[_ManifestConstants.MAIN] = _ArgCatParser(parser=main_parser, name=_ManifestConstants.MAIN, arguments=[])
@@ -618,6 +629,36 @@ class ArgCat:
                 _ArgCatPrinter.print(f"Unknown parser '{parser_name}' to set with handler '{func_name}'.", 
                 level=_ArgCatPrintLevel.WARNING)
 
+    def add_main_module_as_handler_provider(self) -> None:
+        """ A convenient method to add main module as a handler provider."""
+        self.add_handler_provider(sys.modules['__main__'])
+    
+    def add_parser_handler(self, parser_name: str, handler: Callable) -> None:
+        handler_name = handler.__name__
+        parser = self._arg_parsers.get(parser_name, None)
+        if parser:
+            if not parser.handler_func:
+                # Check the signature of the handler to make sure it can work.
+                func_sig = inspect.signature(handler)
+                handler_parameters = set(func_sig.parameters.keys())
+                parser_require_parameters = set(parser.dests)
+                if handler_parameters == parser_require_parameters:
+                    parser.handler_func = handler
+                    _ArgCatPrinter.print(f"Added handler `{handler_name}{func_sig}` for the parser `{parser_name}`",
+                                         level=_ArgCatPrintLevel.IF_NECESSARY)
+                else:
+                    parser_require_parameters_str = functools.reduce(lambda a, b: f"{a}, {b}", parser_require_parameters)
+                    _ArgCatPrinter.print(f"Provided handler `{handler_name}{func_sig}` does not meet the " + 
+                                         f"requirement of the parser `{parser_name}`, which requires a handler with parameters " +
+                                         f"`({parser_require_parameters_str})`.", 
+                                         level=_ArgCatPrintLevel.WARNING)
+            else:
+                _ArgCatPrinter.print(f"Multiple handlers for one parser '{parser_name}'.", 
+                level=_ArgCatPrintLevel.WARNING)
+        else:
+            _ArgCatPrinter.print(f"Unknown parser '{parser_name}' to set with handler '{handler_name}'.", 
+            level=_ArgCatPrintLevel.WARNING)
+    
     def print_parser_handlers(self) -> None:
         """Show information of all handlers."""
         if not self._arg_parsers:
