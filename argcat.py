@@ -52,7 +52,7 @@ class _ARGUMENT_DEFAULTS_:
     META = {
         ManifestConstants.PROG: "Cool program name",
         ManifestConstants.DESCRIPTION: "Awesome description",
-        # In easy mode, we don't use these to make the help texts clean.
+        # In build mode, we don't use these by default to make the help texts clean.
         # ManifestConstants.SUBPARSER: {
         #     ManifestConstants.TITLE: "The subparsers title",
         #     ManifestConstants.DESCRIPTION: "The subparsers description",
@@ -65,7 +65,7 @@ class _ARGUMENT_DEFAULTS_:
     HELP = ""
     METAVAR = "metavar"
     PARSERS = {
-        # There is main parser by default
+        # There is a `main` parser by default
         ManifestConstants.MAIN: { ManifestConstants.ARGUMENTS: [] }
     }
     
@@ -164,7 +164,7 @@ class ArgCatParser:
         return sub_parser_name, parsed_arguments_dict
 
 class ArgCatBuilder:
-    def __init__(self, on_build_done: Callable) -> None:
+    def __init__(self, on_build_done: Callable):
         self._manifest_data = {}
         self._on_build_done = on_build_done
     
@@ -197,11 +197,13 @@ class ArgCatBuilder:
         return the_parser
     
     def set_prog_info(self, prog_name: Optional[str] = None, description: Optional[str] = None) -> None:
-        """Set basic information of the program.
+        """Set basic information of program.
         
-        Quite straightfoward method to use. Note that if there is one valid prog_name or description exists and user 
-        inputs None for one or both of them, the previous valid value would not be replaced with the None(s). So, 
-        actually, these properties can only be blank but not be None by this method.
+        Quite straightfoward method to use. 
+        
+        Note that if there is one valid prog_name or description exists and user inputs None for one or both of them, 
+        the previous valid value would not be replaced with the None(s). So, actually, these properties can only be 
+        blank but not be None through this method.
         
         Returns None.
         """
@@ -214,12 +216,12 @@ class ArgCatBuilder:
                             help: Optional[str] = None) -> None:
         """Create and set sub parser info.
         
-        If user call this, we are assuming user want to create and set sub parser information, even if user input None
-        thing.
+        If user call this, we are assuming user wants to create and set sub parser information, even if user input None
+        values.
         
-        Note that if there is one valid title or description or help exists and user 
-        inputs None for one or all of them, the previous valid value would not be replaced with the None(s). So, 
-        actually, these properties can only be blank but not be None by this method.
+        Note that if there is one valid title or description or help exists and user inputs None for one or all of them, 
+        the previous valid value(s) would not be replaced with the None(s). So, actually, these properties can only be 
+        blank but not be None through this method.
         
         Returns None.
         """
@@ -246,7 +248,7 @@ class ArgCatBuilder:
     
     def add_group(self, name: str, parser_name: str = ManifestConstants.MAIN, description: Optional[str] = None, 
                   is_mutually_exclusive: bool = False) -> None:
-        """Add group for arguments.
+        """Add a new group for arguments.
         
         Quite straightforward and self-explained method to add group.
         
@@ -257,7 +259,7 @@ class ArgCatBuilder:
         new_group = the_groups.get(name, {})
         
         if new_group:
-            ArgCatPrinter.print(f"Failed to add argument group `{name}` because it has already been there.", 
+            ArgCatPrinter.print(f"Failed to add an existed argument group `{name}`.", 
                                 level=ArgCatPrintLevel.WARNING)
             return
         
@@ -276,7 +278,7 @@ class ArgCatBuilder:
         Quite straightforward and self-explained method to add argument. 
         
         Note if there is no sub parser created for the parser_name, a new sub parser will be created for this argument.
-        By contrast, the group name of the group must be added by add_group() before this if the group name is not None.
+        By contrast, the group name of the group must be added by add_group() before this with the a valid group name.
         
         Returns None.
         """
@@ -640,4 +642,3 @@ class ArgCat:
                 dest = arg.get(ManifestConstants.DEST, None)
                 name = arg.get(ManifestConstants.NAME_OR_FLAGS, dest)
                 ArgCatPrinter.print("{} -> {}".format(name, dest), indent=2, level=ArgCatPrintLevel.IF_NECESSARY)
-    # TODO: For default main handler: use this ArgumentParser.print_usage to print usage.            
