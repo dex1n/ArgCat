@@ -40,16 +40,16 @@ class IncorrectHandlerProvider:
 class DifferentKindsOfHandlerProvider:
     @staticmethod
     @ArgCat.handler(parser_name='main')  
-    def static_main_handler(test: str=None) -> None:
+    def static_main_handler(test: str=None) -> str:
         return 'static_main'
 
     @classmethod
     @ArgCat.handler(parser_name='info')  
-    def static_info_handler(cls, detail: str=None) -> None:
+    def static_info_handler(cls, detail: str=None) -> str:
         return 'class_info'
     
     @ArgCat.handler(parser_name='init')  
-    def normal_function_init_handler(self) -> None:
+    def normal_function_init_handler(self) -> str:
         return 'normal_function_init'
 
 class TestHandler(ArgCatUnitTest):
@@ -86,6 +86,3 @@ class TestHandler(ArgCatUnitTest):
         "Parser handler for 'info' is wrong!")
         self.assertEqual(self._argcat._arg_parsers['init'].handler_func(), 'normal_function_init', 
         "Parser handler for 'init' is wrong!")
-
-       
-

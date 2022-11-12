@@ -46,7 +46,8 @@ class _ManifestConstants:
     HELP = 'help'
     # Mainly used for main arguments. If this is set to True, the argument will be filtered out before being passed
     # into subparser's handler. Default value is False.
-    IGNORED_BY_SUBPARSER = 'ignored_by_subparser'   
+    IGNORED_BY_SUBPARSER = 'ignored_by_subparser'
+    DEFAULT_HANDLER = 'default_handler'   
 
 
 # Default manifest
@@ -630,7 +631,8 @@ class ArgCat:
             handler_name = handler.__name__
         parser = self._arg_parsers.get(parser_name, None)
         if parser:
-            if not parser.handler_func:
+            # If there is no handler or the handler is a default one provided by ArgCat.
+            if not parser.handler_func or parser.handler_func == self._default_main_handler:
                 # Check the signature of the handler to make sure it can work.
                 func_sig = inspect.signature(handler)
                 handler_parameters = set(func_sig.parameters.keys())
