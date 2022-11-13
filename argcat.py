@@ -520,13 +520,19 @@ class ArgCat:
         
         # A very private way to set a default main handler in case user does not provide any handler.
         self._arg_parsers[_ManifestConstants.MAIN].handler_func = self._default_main_handler
-        
-    def _default_main_handler(self, **kwargs):
+    
+    # The return value for this is mainly for unittest.
+    def _default_main_handler(self, **kwargs) -> bool:
         _ArgCatPrinter.print("The default `main` handler is triggered to print simple usage only. " + 
                             "Please set your `main` handler if necessary.", level=_ArgCatPrintLevel.VERBOSE)
         main_parser = self._arg_parsers.get(_ManifestConstants.MAIN, None)
         if main_parser:
             main_parser.parser.print_usage()
+            return True
+        else:
+            _ArgCatPrinter.print("The default `main` handler is triggered but the main parser is not valid!", 
+                                 level=_ArgCatPrintLevel.ERROR)
+        return False
     
     def load(self, manifest_file_path: str) -> None:
         """Load manifest from file at path.
@@ -598,13 +604,13 @@ class ArgCat:
             level=_ArgCatPrintLevel.ERROR, indent=1)
         return None
 
-    def add_handler_provider(self, handler_provider: Any) -> None:
+    def add_handler_provider(self, handler_provider: Any) -> bool:
         """Set an object as the provider for ArgCat to find handlers.
 
         The provider can normally be a (meta) class (instance), namespace or 
         anything has @ArgCat.handler decorated method/function.
 
-        Returns None.
+        Returns a bool value which is whether all the handlers are set successfully.
         """
         _ArgCatPrinter.print(f"Setting handlers from provider: `{handler_provider}` ...")
         all_handler_func_dicts: List[Dict] = [{'name': name, 'func': obj} for name, obj in 
@@ -614,19 +620,27 @@ class ArgCat:
         if not all_handler_func_dicts:
             _ArgCatPrinter.print(f"The handler provider '{handler_provider}' does not have any handler. Skip ...", 
             level=_ArgCatPrintLevel.WARNING)
-            return
+            return False
+        all_done = True
         for func_dict in all_handler_func_dicts:
             func = func_dict['func']
             func_name = func_dict['name']
             parser_name = func.argcat_argument_parser_name
-            self.add_parser_handler(parser_name=parser_name, handler=func, handler_name=func_name)
+            done = self.add_parser_handler(parser_name=parser_name, handler=func, handler_name=func_name)
+            if done == False:
+                all_done = False
+        return all_done
 
-    def add_main_module_as_handler_provider(self) -> None:
-        """ A convenient method to add main module as a handler provider."""
-        self.add_handler_provider(sys.modules['__main__'])
+    def add_main_module_as_handler_provider(self) -> bool:
+        """ A convenient method to add main module as a handler provider. 
+        Returns a bool value which is whether the handler provider is set successfully.
+        """
+        return self.add_handler_provider(sys.modules['__main__'])
     
-    def add_parser_handler(self, parser_name: str, handler: Callable, handler_name: Optional[str] = None) -> None:
-        """ A flexible way to add handler for a specific parser. """
+    def add_parser_handler(self, parser_name: str, handler: Callable, handler_name: Optional[str] = None) -> bool:
+        """ A flexible way to add handler for a specific parser. 
+        Returns a bool value which is whether the handler is set successfully.
+        """
         if handler_name is None:
             handler_name = handler.__name__
         parser = self._arg_parsers.get(parser_name, None)
@@ -641,18 +655,22 @@ class ArgCat:
                     parser.handler_func = handler
                     _ArgCatPrinter.print(f"Added handler `{handler_name}{func_sig}` for the parser `{parser_name}`.",
                                          level=_ArgCatPrintLevel.VERBOSE)
+                    return True
                 else:
                     parser_require_parameters_str = functools.reduce(lambda a, b: f"{a}, {b}", parser_require_parameters)
                     _ArgCatPrinter.print(f"Provided handler `{handler_name}{func_sig}` does not meet the " + 
                                          f"requirement of the parser `{parser_name}`, which requires a handler with parameters " +
                                          f"`({parser_require_parameters_str})`.", 
                                          level=_ArgCatPrintLevel.WARNING)
+                    return False
             else:
                 _ArgCatPrinter.print(f"Multiple handlers for one parser `{parser_name}`.", 
                 level=_ArgCatPrintLevel.WARNING)
         else:
             _ArgCatPrinter.print(f"Unknown parser `{parser_name}` to set with handler `{handler_name}`.", 
             level=_ArgCatPrintLevel.WARNING)
+            
+        return False
     
     def print_parser_handlers(self) -> None:
         """Show information of all handlers."""
