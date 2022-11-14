@@ -167,8 +167,9 @@ class _ArgCatParser:
         else:
             sub_parser_name = self._name
         # ManifestConstants.SUB_PARSER_NAME is not needed for the handlers.
-        # So, delete it from the argument dict.
-        del parsed_arguments_dict[_ManifestConstants.SUB_PARSER_NAME]
+        # So, delete it from the argument dict if it exists.
+        if _ManifestConstants.SUB_PARSER_NAME in parsed_arguments_dict:
+            del parsed_arguments_dict[_ManifestConstants.SUB_PARSER_NAME]
         return sub_parser_name, parsed_arguments_dict
 
 class _ArgCatBuilder:
@@ -188,14 +189,16 @@ class _ArgCatBuilder:
         self._on_build_done(self._manifest_data)
     
     def _create_default_argument(self) -> Dict:
-        return {
-            _ManifestConstants.NAME_OR_FLAGS: None,
-            _ManifestConstants.NARGS: _ARGUMENT_DEFAULTS_.NARGS, 
-            _ManifestConstants.DEST: _ARGUMENT_DEFAULTS_.DEST, 
-            _ManifestConstants.METAVAR: _ARGUMENT_DEFAULTS_.METAVAR,
-            _ManifestConstants.TYPE: _ARGUMENT_DEFAULTS_.TYPE,
-            _ManifestConstants.HELP: _ARGUMENT_DEFAULTS_.HELP
-        }  
+        return {}
+        #TODO: Below may be not needed.
+        #return {
+        #    _ManifestConstants.NAME_OR_FLAGS: None,
+        #    _ManifestConstants.NARGS: _ARGUMENT_DEFAULTS_.NARGS, 
+        #    _ManifestConstants.DEST: _ARGUMENT_DEFAULTS_.DEST, 
+        #    _ManifestConstants.METAVAR: _ARGUMENT_DEFAULTS_.METAVAR,
+        #    _ManifestConstants.TYPE: _ARGUMENT_DEFAULTS_.TYPE,
+        #    _ManifestConstants.HELP: _ARGUMENT_DEFAULTS_.HELP
+        #}  
     
     def _select_parser_by_name(self, parser_name: str) -> None:
         parsers: Dict = self._manifest_data[_ManifestConstants.PARSERS]
@@ -280,72 +283,108 @@ class _ArgCatBuilder:
     def add_argument(self, recipe: str, parser_name: str = _ManifestConstants.MAIN, help: Optional[str] = None, 
                      arg_type: str = _ARGUMENT_DEFAULTS_.TYPE, default: Any = None, choices: Optional[Container] = None, 
                      action: Optional[str] = None, const: Optional[str] = None, 
-                     group_name: Optional[str] = None) -> None:
+                     group_name: Optional[str] = None) -> bool:
         """Add a new argument for `main` parser or a sub parser.
         
-        Quite straightforward and self-explained method to add argument. 
+        The recipe is a string in a format like `-a/--arg nargs>dest:type?`, which provides `name_or_flags`, `nargs`, 
+        `dest`, `type` and `required` information for an argument. Among these information, only `dest` is required, and 
+        the others could be omitted. This recipe is used as a convenient way to set the essential information of an
+        argument. For example, `"filename"` can be a recipe for a positional argument whose `dest` is `filename`. And 
+        `-f/--file ?>filename:str?` can be the full version of that `filename` argument with spefific information:
+        `name_or_flags` is ['-f', '--file'], `nargs` is ?, `dest` is filename, `type` is str and `required` is False.
+        When creating the parsers with the recipe, argparse.ArgumentParser().add_argument() will take care of the 
+        omitted information and give the default values.
         
-        Note if there is no sub parser created for the parser_name, a new sub parser will be created for this argument.
+        This method itself is quite straightforward and self-explained. 
+        
+        Note if there is no sub parser with the parser_name, a new sub parser will be created for this argument.
         By contrast, the group name of the group must be added by add_group() before this with the a valid group name.
         
-        Returns None.
+        Returns whether adding is successful.
         """
         
         the_parser = self._select_parser_by_name(parser_name)
         arguments = the_parser[_ManifestConstants.ARGUMENTS]
         new_argument = self._create_default_argument()
 
-        # 目前这个正则除了 default, choice, action 和 help 都覆盖到了
-        # A recipe would be like:
-        # `-a/--arg nargs>dest:type?`
-        # For example, for a recipe: "-f/--file 1>filename:str?",
-        # a match for argument part would be like the tuple below:
-        # ('-f', '--file',  '?',     'filename',     ':str',     '?',)
-        #  NAME_OR_FLAGS,   NARGS,      DEST,         TYPE,    REQUIRED,                         
-        arguments_regex = re.compile("(\-\D)\/(\-\-\D\w+) +([?*+]|\d+)>([a-zA-Z]+)(:\w+)?(\??)")
-        arguments_matches = arguments_regex.findall(recipe)
+        # A full recipe would be like: `-a/--arg nargs>dest:type?`,
+        # for example, "-f/--file 1>filename:str?".
+        # However, it also supports basic and short recipe like `dest`.
+        # for example, a simple positional argument with a recipe "filename".
+        # a regex match for recipe will result in such tuple for the recipe: "-t/--type 1>type:str?":
+        # ('-t/--type ', '-t/--type', '-t', '--type', '', '', '1>', '1', 'type',             ':str',     '?')                   
+        #                             NAME_OR_FLAGS,            NARGS,    DEST,               TYPE,    REQUIRED
+        # and will result in tuple below for the recipe "nothingelsematter":
+        # ('',                '',       '',     '',   '', '',  '',   '', 'nothingelsematter',  '',         '')
+        #                             NAME_OR_FLAGS,            NARGS,       DEST,            TYPE,    REQUIRED
         
-        for match in arguments_matches:
-            new_argument[_ManifestConstants.NAME_OR_FLAGS] = [match[0], match[1]]
+        arguments_regex = re.compile("^(((\-[a-zA-Z])\/(\-\-[a-zA-Z]{2,})|(\-[a-zA-Z])|(\-\-[a-zA-Z]{2,})) )? *(([?*+]|\d+)>)?([a-zA-Z]+)(:\w+)?(\??)$")
+        
+        arguments_matches = arguments_regex.findall(recipe)
+        #print(arguments_matches)
+        
+        # There should be only one match for the recipe.
+        if not arguments_matches or len(arguments_matches) > 1:
+            _ArgCatPrinter.print(f"Unable to parse the argument recipe `{recipe}`, so failed to add argument.", 
+                                level=_ArgCatPrintLevel.WARNING)
+            return False
+        
+        # Pull out all information of the match.
+        # TODO: Maybe we should use exception here instead of returning bool?
+        arg_match = arguments_matches[0]
+
+        short_nof = arg_match[2]
+        long_nof = arg_match[3]
+        nargs = arg_match[7]
+        dest = arg_match[8]
+        recipe_arg_type = arg_match[9]
+        required = arg_match[10]
+        
+        if short_nof and long_nof:
+            new_argument[_ManifestConstants.NAME_OR_FLAGS] = [short_nof, long_nof]
+        
+        if nargs in ['?','*','+']:
+            new_argument[_ManifestConstants.NARGS] = nargs
+        elif nargs: # NARGS is a int number.
+            new_argument[_ManifestConstants.NARGS] = int(nargs)
+        
+        # Only dest is the required information for an argument.
+        new_argument[_ManifestConstants.DEST] = dest
+        new_argument[_ManifestConstants.METAVAR] = new_argument[_ManifestConstants.DEST].upper()
+        
+        # If a arg_type is passed, use it ignoring the possible one in recipe.
+        if arg_type:
+            new_argument[_ManifestConstants.TYPE] = arg_type
+        elif recipe_arg_type:
+        # Otherwise, use the type string in the recipe without the first charactor ":".
+            new_argument[_ManifestConstants.TYPE] = arg_match[4][1:] 
+        
+        if required:
+            new_argument[_ManifestConstants.REQUIRED] = not (required == "?")
+        
+        if default is not None:
+            new_argument[_ManifestConstants.DEFAULT] = default
+        
+        # Addtional settings.
+        if help:
+            new_argument[_ManifestConstants.HELP] = help
+        
+        if choices:
+            new_argument[_ManifestConstants.CHOICES] = choices
             
-            if match[2] in ['?','*','+']:
-                new_argument[_ManifestConstants.NARGS] = match[2]
-            else: # NARGS is a int number.
-                new_argument[_ManifestConstants.NARGS] = int(match[2])
-            
-            new_argument[_ManifestConstants.DEST] = match[3]
-            new_argument[_ManifestConstants.METAVAR] = new_argument[_ManifestConstants.DEST].upper()
-            
-            # If a arg_type is passed, use it ignoring the possible one in recipe.
-            if arg_type:
-                new_argument[_ManifestConstants.TYPE] = arg_type
-            elif match[4]:
-            # Otherwise, use the type string in the recipe without the first charactor ":".
-                new_argument[_ManifestConstants.TYPE] = match[4][1:] 
-                
-            new_argument[_ManifestConstants.REQUIRED] = not (match[5] == "?")
-            
-            if default is not None:
-                new_argument[_ManifestConstants.DEFAULT] = default
-            
-            # Addtional settings.
-            if help:
-                new_argument[_ManifestConstants.HELP] = help
-            
-            if choices:
-                new_argument[_ManifestConstants.CHOICES] = choices
-                
-            if action:
-                new_argument[_ManifestConstants.ACTION] = action
-            
-            if const:
-                new_argument[_ManifestConstants.CONST] = const
-            
-            if group_name:
-                new_argument[_ManifestConstants.GROUP] = group_name
+        if action:
+            new_argument[_ManifestConstants.ACTION] = action
+        
+        if const:
+            new_argument[_ManifestConstants.CONST] = const
+        
+        if group_name:
+            new_argument[_ManifestConstants.GROUP] = group_name
             
         arguments.append(new_argument)
- 
+
+        return True
+    
 # Only public class for use. #      
 class ArgCat:
     @staticmethod
