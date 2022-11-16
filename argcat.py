@@ -10,7 +10,7 @@ import functools
 from pathlib import Path
 from pydoc import locate
 from enum import Enum, unique
-from argparse import ArgumentParser, Namespace, _ArgumentGroup, _MutuallyExclusiveGroup, _SubParsersAction
+from argparse import ArgumentParser, Namespace, _ArgumentGroup, _MutuallyExclusiveGroup, _SubParsersAction, Action
 from typing import ClassVar, Container, List, Dict, Optional, Callable, Tuple, Any, Union
 
 
@@ -106,12 +106,12 @@ class _ArgCatPrinter:
         print(final_msg)
 
 class _ArgCatParser:
-    def __init__(self, parser: ArgumentParser, name: str, arguments: List[Dict], dests: List[str], groups: Optional[Dict] = None, 
+    def __init__(self, parser: ArgumentParser, name: str, arguments: List[Action], groups: Optional[Dict] = None, 
     handler_func: Optional[Callable] = None):
         self._parser: ArgumentParser = parser
         self._name: str = name
         self._arguments: List[Dict] = arguments
-        self._dests = dests
+        self._dests = [arg.dest for arg in arguments]
         self._groups: Optional[Dict] = groups
         self._handler_func: Optional[Callable] = handler_func
     
@@ -120,7 +120,7 @@ class _ArgCatParser:
         return self._name
 
     @property
-    def arguments(self) -> List[Dict]:
+    def arguments(self) -> List[Action]:
         return self._arguments
 
     @property
@@ -188,26 +188,14 @@ class _ArgCatBuilder:
     def __exit__(self, type, value, traceback):
         self._on_build_done(self._manifest_data)
     
-    def _create_default_argument(self) -> Dict:
-        return {}
-        #TODO: Below may be not needed.
-        #return {
-        #    _ManifestConstants.NAME_OR_FLAGS: None,
-        #    _ManifestConstants.NARGS: _ARGUMENT_DEFAULTS_.NARGS, 
-        #    _ManifestConstants.DEST: _ARGUMENT_DEFAULTS_.DEST, 
-        #    _ManifestConstants.METAVAR: _ARGUMENT_DEFAULTS_.METAVAR,
-        #    _ManifestConstants.TYPE: _ARGUMENT_DEFAULTS_.TYPE,
-        #    _ManifestConstants.HELP: _ARGUMENT_DEFAULTS_.HELP
-        #}  
-    
-    def _select_parser_by_name(self, parser_name: str) -> None:
+    def _select_parser_by_name(self, parser_name: str) -> dict:
         parsers: Dict = self._manifest_data[_ManifestConstants.PARSERS]
         # Select the parser by name.
         # It may be a 'main' parser or any other sub parser.
         the_parser = parsers.setdefault(parser_name, { _ManifestConstants.ARGUMENTS: [] })
         return the_parser
     
-    def set_prog_info(self, prog_name: Optional[str] = None, description: Optional[str] = None) -> None:
+    def set_prog_info(self, prog_name: Optional[str] = None, description: Optional[str] = None) -> dict:
         """Set basic information of program.
         
         Quite straightfoward method to use. 
@@ -216,15 +204,21 @@ class _ArgCatBuilder:
         the previous valid value would not be replaced with the None(s). So, actually, these properties can only be 
         blank but not be None through this method.
         
-        Returns None.
+        Returns a dict contains the prog name and description after this set.
         """
         if prog_name is not None:
             self._manifest_data[_ManifestConstants.META][_ManifestConstants.PROG] = prog_name
         if description is not None:
             self._manifest_data[_ManifestConstants.META][_ManifestConstants.DESCRIPTION] = description
+            
+        return {_ManifestConstants.PROG: 
+                    self._manifest_data[_ManifestConstants.META][_ManifestConstants.PROG], 
+                _ManifestConstants.DESCRIPTION: 
+                    self._manifest_data[_ManifestConstants.META][_ManifestConstants.DESCRIPTION]
+                }
     
     def set_sub_parser_info(self, title: Optional[str] = None, description: Optional[str] = None, 
-                            help: Optional[str] = None) -> None:
+                            help: Optional[str] = None) -> dict:
         """Create and set sub parser info.
         
         If user call this, we are assuming user wants to create and set sub parser information, even if user input None
@@ -234,7 +228,7 @@ class _ArgCatBuilder:
         the previous valid value(s) would not be replaced with the None(s). So, actually, these properties can only be 
         blank but not be None through this method.
         
-        Returns None.
+        Returns a dict contains the set sub parser information.
         """
         sub_parser_info = self._manifest_data[_ManifestConstants.META].get(_ManifestConstants.SUBPARSER, {})
         if title is not None:
@@ -244,26 +238,30 @@ class _ArgCatBuilder:
         if help is not None:
             sub_parser_info[_ManifestConstants.HELP] = help
         self._manifest_data[_ManifestConstants.META][_ManifestConstants.SUBPARSER] = sub_parser_info
+        
+        return dict(sub_parser_info)
     
-    def remove_sub_parser_info(self) -> None:
+    def remove_sub_parser_info(self) -> bool:
         """Remove sub parser information.
         
         Since sub parser information is not necessary for a program, we set the info None by default and allow user to 
         remove all of this.
         
-        Returns None.
+        Returns whether the removal operation is done.
         """
         sub_parser_info = self._manifest_data[_ManifestConstants.META].get(_ManifestConstants.SUBPARSER, None)
         if sub_parser_info is not None:
             del self._manifest_data[_ManifestConstants.META][_ManifestConstants.SUBPARSER]
+            return True
+        return False
     
     def add_group(self, name: str, parser_name: str = _ManifestConstants.MAIN, description: Optional[str] = None, 
-                  is_mutually_exclusive: bool = False) -> None:
+                  is_mutually_exclusive: bool = False) -> dict:
         """Add a new group for arguments.
         
         Quite straightforward and self-explained method to add group.
         
-        Returns None.
+        Returns a dict contains the group information or None if any errors.
         """
         the_parser = self._select_parser_by_name(parser_name)
         the_groups = the_parser.setdefault(_ManifestConstants.ARGUMENT_GROUPS, {})
@@ -272,118 +270,34 @@ class _ArgCatBuilder:
         if new_group:
             _ArgCatPrinter.print(f"Failed to add an existed argument group `{name}`.", 
                                 level=_ArgCatPrintLevel.WARNING)
-            return
+            return None
         
         new_group[_ManifestConstants.DESCRIPTION] = description
         new_group[_ManifestConstants.IS_MUTUALLY_EXCLUSIVE] = is_mutually_exclusive
         
         the_groups[name] = new_group
-        
+        return dict(new_group)
     
-    def add_argument(self, recipe: str, parser_name: str = _ManifestConstants.MAIN, help: Optional[str] = None, 
-                     arg_type: str = _ARGUMENT_DEFAULTS_.TYPE, default: Any = None, choices: Optional[Container] = None, 
-                     action: Optional[str] = None, const: Optional[str] = None, 
-                     group_name: Optional[str] = None) -> bool:
-        """Add a new argument for `main` parser or a sub parser.
+    def add_argument(self, parser_name: str, *args, **kwargs) -> dict:
+        """Add a new argument for 'main' parser or a sub parser.
         
-        The recipe is a string in a format like `-a/--arg nargs>dest:type?`, which provides `name_or_flags`, `nargs`, 
-        `dest`, `type` and `required` information for an argument. Among these information, only `dest` is required, and 
-        the others could be omitted. This recipe is used as a convenient way to set the essential information of an
-        argument. For example, `"filename"` can be a recipe for a positional argument whose `dest` is `filename`. And 
-        `-f/--file ?>filename:str?` can be the full version of that `filename` argument with spefific information:
-        `name_or_flags` is ['-f', '--file'], `nargs` is ?, `dest` is filename, `type` is str and `required` is False.
-        When creating the parsers with the recipe, argparse.ArgumentParser().add_argument() will take care of the 
-        omitted information and give the default values.
+        `parser_name` is a must and can be 'main' or any other parser name, even the parser does not exist. A new sub
+        parser would be created if the target one is not added.
         
-        This method itself is quite straightforward and self-explained. 
+        `*args, **kwargs` is exactly the same as those in `argparse.add_argument()`. ArgCat just passes these as
+        they are into `argparse.add_argument()` without doing any operation on them. So, if there is any error about 
+        your input, don't blame the cat. :P
         
-        Note if there is no sub parser with the parser_name, a new sub parser will be created for this argument.
-        By contrast, the group name of the group must be added by add_group() before this with the a valid group name.
-        
-        Returns whether adding is successful.
+        Returns a dict contains the argument information from `*args, **kwargs`.
         """
-        
         the_parser = self._select_parser_by_name(parser_name)
         arguments = the_parser[_ManifestConstants.ARGUMENTS]
-        new_argument = self._create_default_argument()
-
-        # A full recipe would be like: `-a/--arg nargs>dest:type?`,
-        # for example, "-f/--file 1>filename:str?".
-        # However, it also supports basic and short recipe like `dest`.
-        # for example, a simple positional argument with a recipe "filename".
-        # a regex match for recipe will result in such tuple for the recipe: "-t/--type 1>type:str?":
-        # ('-t/--type ', '-t/--type', '-t', '--type', '', '', '1>', '1', 'type',             ':str',     '?')                   
-        #                             NAME_OR_FLAGS,            NARGS,    DEST,               TYPE,    REQUIRED
-        # and will result in tuple below for the recipe "nothingelsematter":
-        # ('',                '',       '',     '',   '', '',  '',   '', 'nothingelsematter',  '',         '')
-        #                             NAME_OR_FLAGS,            NARGS,       DEST,            TYPE,    REQUIRED
-        
-        arguments_regex = re.compile("^(((\-[a-zA-Z])\/(\-\-[a-zA-Z]{2,})|(\-[a-zA-Z])|(\-\-[a-zA-Z]{2,})) )? *(([?*+]|\d+)>)?([a-zA-Z]+)(:\w+)?(\??)$")
-        
-        arguments_matches = arguments_regex.findall(recipe)
-        #print(arguments_matches)
-        
-        # There should be only one match for the recipe.
-        if not arguments_matches or len(arguments_matches) > 1:
-            _ArgCatPrinter.print(f"Unable to parse the argument recipe `{recipe}`, so failed to add argument.", 
-                                level=_ArgCatPrintLevel.WARNING)
-            return False
-        
-        # Pull out all information of the match.
-        # TODO: Maybe we should use exception here instead of returning bool?
-        arg_match = arguments_matches[0]
-
-        short_nof = arg_match[2]
-        long_nof = arg_match[3]
-        nargs = arg_match[7]
-        dest = arg_match[8]
-        recipe_arg_type = arg_match[9]
-        required = arg_match[10]
-        
-        if short_nof and long_nof:
-            new_argument[_ManifestConstants.NAME_OR_FLAGS] = [short_nof, long_nof]
-        
-        if nargs in ['?','*','+']:
-            new_argument[_ManifestConstants.NARGS] = nargs
-        elif nargs: # NARGS is a int number.
-            new_argument[_ManifestConstants.NARGS] = int(nargs)
-        
-        # Only dest is the required information for an argument.
-        new_argument[_ManifestConstants.DEST] = dest
-        new_argument[_ManifestConstants.METAVAR] = new_argument[_ManifestConstants.DEST].upper()
-        
-        # If a arg_type is passed, use it ignoring the possible one in recipe.
-        if arg_type:
-            new_argument[_ManifestConstants.TYPE] = arg_type
-        elif recipe_arg_type:
-        # Otherwise, use the type string in the recipe without the first charactor ":".
-            new_argument[_ManifestConstants.TYPE] = arg_match[4][1:] 
-        
-        if required:
-            new_argument[_ManifestConstants.REQUIRED] = not (required == "?")
-        
-        if default is not None:
-            new_argument[_ManifestConstants.DEFAULT] = default
-        
-        # Addtional settings.
-        if help:
-            new_argument[_ManifestConstants.HELP] = help
-        
-        if choices:
-            new_argument[_ManifestConstants.CHOICES] = choices
-            
-        if action:
-            new_argument[_ManifestConstants.ACTION] = action
-        
-        if const:
-            new_argument[_ManifestConstants.CONST] = const
-        
-        if group_name:
-            new_argument[_ManifestConstants.GROUP] = group_name
-            
+        new_argument = {} # An empty argument. 
+        new_argument[_ManifestConstants.NAME_OR_FLAGS] = args
+        for k, v in kwargs.items():
+            new_argument[k] = v
         arguments.append(new_argument)
-
-        return True
+        return dict(new_argument)
     
 # Only public class for use. #      
 class ArgCat:
@@ -521,7 +435,7 @@ class ArgCat:
                 parser_argument_groups_dict = None
             # Add arguments into this new parser
             parser_arguments_list = parser_dict.get(_ManifestConstants.ARGUMENTS, [])   # might be None
-            dests = []  # Collect dests through the loop for later handler binding check.
+            added_arguments = []  # For collecting added arguments
             for argument_dict in parser_arguments_list:
                 name_or_flags: Optional[List] = argument_dict.get(_ManifestConstants.NAME_OR_FLAGS, None)
                 argument_meta_dict = dict(argument_dict)
@@ -543,15 +457,15 @@ class ArgCat:
                         if created_group is not None:
                             object_to_add_argument = created_group
                 if name_or_flags:
-                    del argument_meta_dict[_ManifestConstants.NAME_OR_FLAGS]
-                    object_to_add_argument.add_argument(*name_or_flags, **argument_meta_dict)
+                    if _ManifestConstants.NAME_OR_FLAGS in argument_meta_dict:
+                        del argument_meta_dict[_ManifestConstants.NAME_OR_FLAGS]
+                    added_arg = object_to_add_argument.add_argument(*name_or_flags, **argument_meta_dict)
                 else: # Suppose it's str by default. If it's not, let it crash.
-                    object_to_add_argument.add_argument(**argument_meta_dict)
-                dests.append(argument_meta_dict[_ManifestConstants.DEST])
+                    added_arg = object_to_add_argument.add_argument(**argument_meta_dict)
+                added_arguments.append(added_arg) # Collect and later save them into _ArgCatParser()
             # Add a new ArgCatPartser with None handler_func    
             self._arg_parsers[parser_name] = _ArgCatParser(parser=new_parser, name=parser_name, 
-                                                           arguments=parser_arguments_list, 
-                                                           dests=dests,
+                                                           arguments=added_arguments, 
                                                            groups=parser_argument_groups_dict)
 
         if _ManifestConstants.MAIN not in self._arg_parsers:

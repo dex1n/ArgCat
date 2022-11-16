@@ -47,12 +47,13 @@ def main():
     argcat = ArgCat(chatter=True)
     
     with argcat.build() as builder:
-        builder.add_argument(recipe="nothingelsematter")
-        builder.add_group(name='test_group', parser_name='haha', description="a test group", is_mutually_exclusive=True)
-        builder.add_argument(parser_name='haha', recipe="-f/--file 1>filename:int?", arg_type='str', 
-                             group_name='test_group', default="./__init__.py")
+        #builder.add_argument(recipe="nothingelsematter")
+        #builder.add_group(name='test_group', parser_name='haha', description="a test group", is_mutually_exclusive=True)
+        #builder.add_argument(parser_name='haha', recipe="-f/--file 1>filename:int?", arg_type='str', 
+        #                     group_name='test_group', default="./__init__.py")
         #builder.add_argument(parser_name='haha', recipe="-t/--type 1>type:str?", arg_type='int', group_name='test_group', default=1)
         
+        builder.add_argument('main', '-faaaaa', '-----file', '--------aaaa')
         
         
     argcat.add_handler_provider(sys.modules['__main__'])
@@ -60,7 +61,7 @@ def main():
     def test(filename: str, type):
         print(f"test oh~ filename = {filename}, type = {type}")
     
-    argcat.add_parser_handler('haha', test)
+    argcat.add_parser_handler('main', test)
     
     
     
