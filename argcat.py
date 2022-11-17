@@ -255,34 +255,36 @@ class _ArgCatBuilder:
             return True
         return False
     
-    def add_group(self, name: str, parser_name: str = _ManifestConstants.MAIN, description: Optional[str] = None, 
+    def add_group(self, parser_name: str, group_name: str, description: Optional[str] = None, 
                   is_mutually_exclusive: bool = False) -> dict:
-        """Add a new group for arguments.
+        """Add a new group for 'main' parser or a sub parser.
         
-        Quite straightforward and self-explained method to add group.
+        `parser_name` is a must and can be either 'main' or any other parser name, even if the parser does not exist. A 
+        new parser will be created and added when the parser of `parser_name` is not there.
         
         Returns a dict contains the group information or None if any errors.
         """
         the_parser = self._select_parser_by_name(parser_name)
         the_groups = the_parser.setdefault(_ManifestConstants.ARGUMENT_GROUPS, {})
-        new_group = the_groups.get(name, {})
+        new_group = the_groups.get(group_name, {})
         
         if new_group:
-            _ArgCatPrinter.print(f"Failed to add an existed argument group `{name}`.", 
+            _ArgCatPrinter.print(f"Failed to add the group `{group_name}`, as there has already been a group of the \
+                                 same name.", 
                                 level=_ArgCatPrintLevel.WARNING)
             return None
         
         new_group[_ManifestConstants.DESCRIPTION] = description
         new_group[_ManifestConstants.IS_MUTUALLY_EXCLUSIVE] = is_mutually_exclusive
         
-        the_groups[name] = new_group
+        the_groups[group_name] = new_group
         return dict(new_group)
     
     def add_argument(self, parser_name: str, *args, **kwargs) -> dict:
         """Add a new argument for 'main' parser or a sub parser.
         
-        `parser_name` is a must and can be 'main' or any other parser name, even the parser does not exist. A new sub
-        parser would be created if the target one is not added.
+        `parser_name` is a must and can be either 'main' or any other parser name, even if the parser does not exist. A 
+        new parser will be created and added when the parser of `parser_name` is not there.
         
         `*args, **kwargs` is exactly the same as those in `argparse.add_argument()`. ArgCat just passes these as
         they are into `argparse.add_argument()` without doing any operation on them. So, if there is any error about 
@@ -448,7 +450,8 @@ class ArgCat:
                     argument_meta_dict[_ManifestConstants.TYPE] = locate(lexical_type)
                 # Add arguments considering we now support group and mutually exclusive group.
                 object_to_add_argument: Union[ArgumentParser, _ArgumentGroup, _MutuallyExclusiveGroup]
-                object_to_add_argument = new_parser
+                object_to_add_argument = new_parser # By default, the argument should be added into a ArgumentParser.
+                # However, if there is a specific `group` set, we add it into an accordingly group.
                 if parser_argument_groups_dict is not None:
                     argument_group = argument_meta_dict.get(_ManifestConstants.GROUP, None)
                     if argument_group is not None:
@@ -460,9 +463,11 @@ class ArgCat:
                     if _ManifestConstants.NAME_OR_FLAGS in argument_meta_dict:
                         del argument_meta_dict[_ManifestConstants.NAME_OR_FLAGS]
                     added_arg = object_to_add_argument.add_argument(*name_or_flags, **argument_meta_dict)
-                else: # Suppose it's str by default. If it's not, let it crash.
+                else: 
                     added_arg = object_to_add_argument.add_argument(**argument_meta_dict)
                 added_arguments.append(added_arg) # Collect and later save them into _ArgCatParser()
+                if object_to_add_argument is not new_parser:
+                    added_arg.group_name = argument_group
             # Add a new ArgCatPartser with None handler_func    
             self._arg_parsers[parser_name] = _ArgCatParser(parser=new_parser, name=parser_name, 
                                                            arguments=added_arguments, 
