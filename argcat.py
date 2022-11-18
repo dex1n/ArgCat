@@ -291,7 +291,7 @@ class _ArgCatBuilder:
         def __init__(self, parser: dict) -> None:
             self._parser = parser
             
-        def add(self, *args, **kwargs) -> dict:
+        def add_argument(self, *args, **kwargs) -> dict:
             """Add a new argument
         
             `*args, **kwargs` is exactly the same as those in `argparse.add_argument()`. ArgCat just passes these as
@@ -313,13 +313,13 @@ class _ArgCatBuilder:
             super().__init__(parser)
             self._ignored_by_subparser = ignored_by_subparser
             
-        def add(self, *args, **kwargs) -> dict:
-            new_argument = super().add(*args, **kwargs)   
+        def add_argument(self, *args, **kwargs) -> dict:
+            new_argument = super().add_argument(*args, **kwargs)   
             new_argument[_ManifestConstants.IGNORED_BY_SUBPARSER] = self._ignored_by_subparser
             return new_argument
     
     def main_parser(self, ignored_by_subparser: bool = True):
-        """Start to create new arguments for 'main' parser
+        """Start to create new arguments for the 'main' parser
         
         `ignored_by_subparser` is very important for any arguments of `main` parsers.
         If `ignored_by_subparser` is True, any arguments created by this will only be passed to the handler for `main` 
