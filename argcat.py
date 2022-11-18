@@ -316,7 +316,7 @@ class _ArgCatBuilder:
             which means being ignored by any other sub parsers.
 
             `ignored_by_subparser` is very important for arguments of `main` parsers.
-            If `ignored_by_subparser` is True, any arguments created by this will only be passed to the handler for 
+            If `ignored_by_subparser` is True, any arguments created with this will only be passed to the handler for 
             `main` parser. Otherwise, the arguments will be also passed to all the sub parser's handler. The different 
             behaviors can decide the signature of the handlers directly. 
             For example, supposed `main` parser has an argument ['verbose'] and a sub parser `load` has an argument 
