@@ -14,16 +14,23 @@ class TestBuild(ArgCatUnitTest):
             #2. add_argument(option_string, option_string, ..., name=value, ...)
         
             # Add argument to the main parser
-            builder.main_parser(ignored_by_subparser=False).add_argument('verbose', action='store_true')
+            builder.main_parser().add_exclusive_argument('verbose', action='store_true')
+            #builder.main_parser().add_exclusive_argument()
+            
             #builder.add_argument('main', 'foo', '-o', '--fooa', action='store_false')  # This is a wrong usage.
             #builder.add_argument('main', '-v', '--verbose', action='store_true')
+            
             # Add group for the sub parser
-            builder.add_group(parser_name='process', group_name='process_group_1', 
-                              description='This is the first group for process, which is not mutually exclusive', 
-                              is_mutually_exclusive=False)
-            builder.add_group(parser_name='process', group_name='process_group_2', 
-                              description='This is the second group for process, which IS mutually exclusive', 
-                              is_mutually_exclusive=True)
+            builder.sub_parser('process').add_group(group_name='process_group_1', 
+                                                    description='This is the first group for process, \
+                                                    which is not mutually exclusive', 
+                                                    is_mutually_exclusive=False)
+            
+            builder.sub_parser('process').add_group(group_name='process_group_2', 
+                                                    description='This is the second group for process, \
+                                                    which IS mutually exclusive', 
+                                                    is_mutually_exclusive=True)
+            
             # Add argument to sub parsers
             builder.sub_parser('process').add_argument('-f', '--file', 
                                  nargs='?', dest='filename', type='str', group='process_group_1', required=True,
@@ -129,7 +136,7 @@ class TestBuild(ArgCatUnitTest):
                          "`process` parser's handler should be None after receiving an incorrect handler!")
         
         # Set a handler with correct paramters
-        def process_handler_with_correct_parameters(verbose, filename: str, filesize: int) -> str:
+        def process_handler_with_correct_parameters(filename: str, filesize: int) -> str:
             return f"process_handler: {filename}, {filesize}"
         self._argcat.add_parser_handler(parser_name='process', handler=process_handler_with_correct_parameters)
         

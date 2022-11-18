@@ -43,9 +43,9 @@ class TestHandler(ArgCatUnitTest):
         with self._argcat.build() as builder:
             builder.main_parser().add_argument('verbose', action='store_true')
             # Add group for the sub parser
-            builder.add_group('load', 'load_group', 
-                              description='This is a group for `load`, which IS mutually exclusive.', 
-                              is_mutually_exclusive=True)
+            builder.sub_parser('load').add_group('load_group', 
+                                                 description='This is a group for `load`, which IS mutually exclusive.', 
+                                                 is_mutually_exclusive=True)
             # Add argument to sub parsers
             builder.sub_parser('load').add_argument('-f', '--file', 
                                  nargs='?', dest='filename', type='str', group='load_group', required=False,

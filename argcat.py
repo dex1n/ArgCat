@@ -262,31 +262,6 @@ class _ArgCatBuilder:
             return True
         return False
     
-    def add_group(self, parser_name: str, group_name: str, description: Optional[str] = None, 
-                  is_mutually_exclusive: bool = False) -> dict:
-        """Add a new group for 'main' parser or a sub parser.
-        
-        `parser_name` is a must and can be either 'main' or any other parser name, even if the parser does not exist. A 
-        new parser will be created and added when the parser of `parser_name` is not there.
-        
-        Returns a dict contains the group information or None if any errors.
-        """
-        the_parser = self._select_parser_by_name(parser_name)
-        the_groups = the_parser.setdefault(_ManifestConstants.ARGUMENT_GROUPS, {})
-        new_group = the_groups.get(group_name, {})
-        
-        if new_group:
-            _ArgCatPrinter.print(f"Failed to add the group `{group_name}`, as there has already been a group of the \
-                                 same name.", 
-                                level=_ArgCatPrintLevel.WARNING)
-            return None
-        
-        new_group[_ManifestConstants.DESCRIPTION] = description
-        new_group[_ManifestConstants.IS_MUTUALLY_EXCLUSIVE] = is_mutually_exclusive
-        
-        the_groups[group_name] = new_group
-        return dict(new_group)
-    
     class __ArgCatParserArgumentBuilder:
         def __init__(self, parser: dict) -> None:
             self._parser = parser
@@ -302,38 +277,69 @@ class _ArgCatBuilder:
             """
             new_argument = {} # An empty argument. 
             new_argument[_ManifestConstants.NAME_OR_FLAGS] = args
+            new_argument[_ManifestConstants.IGNORED_BY_SUBPARSER] = False
             for k, v in kwargs.items():
                 new_argument[k] = v
             arguments: list = self._parser[_ManifestConstants.ARGUMENTS]
             arguments.append(new_argument)
+            
             return new_argument
+        
+        def add_group(self, group_name: str, description: Optional[str] = None, 
+                      is_mutually_exclusive: bool = False) -> dict:
+            """Add a new group for a parser.
+            Returns a dict contains the group information or None if any errors.
+            """
+            the_groups = self._parser.setdefault(_ManifestConstants.ARGUMENT_GROUPS, {})
+            new_group = the_groups.get(group_name, {})
+        
+            if new_group:
+                _ArgCatPrinter.print(f"Failed to add the group `{group_name}`, as there has already been a group of the \
+                                    same name.", 
+                                    level=_ArgCatPrintLevel.WARNING)
+                return None
+        
+            new_group[_ManifestConstants.DESCRIPTION] = description
+            new_group[_ManifestConstants.IS_MUTUALLY_EXCLUSIVE] = is_mutually_exclusive
+        
+            the_groups[group_name] = new_group
+            return new_group
     
     class __ArgCatMainParserArgumentBuilder(__ArgCatParserArgumentBuilder):
-        def __init__(self, parser: dict, ignored_by_subparser: bool):
+        def __init__(self, parser: dict):
             super().__init__(parser)
-            self._ignored_by_subparser = ignored_by_subparser
+        
+        def add_exclusive_argument(self, *args, **kwargs) -> dict:
+            """Add a new exclusive argument
             
-        def add_argument(self, *args, **kwargs) -> dict:
+            An exclusive argument for `main` parser is one argument whose `ignored_by_subparser` property is True,
+            which means being ignored by any other sub parsers.
+
+            `ignored_by_subparser` is very important for arguments of `main` parsers.
+            If `ignored_by_subparser` is True, any arguments created by this will only be passed to the handler for 
+            `main` parser. Otherwise, the arguments will be also passed to all the sub parser's handler. The different 
+            behaviors can decide the signature of the handlers directly. 
+            For example, supposed `main` parser has an argument ['verbose'] and a sub parser `load` has an argument 
+            ['-f', '--file']. If ['verbose'] is `ignored_by_subparser`, the sub parser's handler should be `func(file)`,
+            which ignores ['verbose']. Instead, if ['verbose'] is not `ignored_by_subparser`, the sub parser's handler 
+            should be `func(verbose, file)`. 
+        
+            `*args, **kwargs` is exactly the same as those in `argparse.add_argument()`. ArgCat just passes these as
+            they are into `argparse.add_argument()` without doing any further operation. So, if there is any 
+            complain/error due to your input, don't blame the cat. (DOGE):P
+        
+            Returns a dict contains the argument information from `*args, **kwargs` and ArgCat.
+            """
             new_argument = super().add_argument(*args, **kwargs)   
-            new_argument[_ManifestConstants.IGNORED_BY_SUBPARSER] = self._ignored_by_subparser
+            new_argument[_ManifestConstants.IGNORED_BY_SUBPARSER] = True
             return new_argument
     
-    def main_parser(self, ignored_by_subparser: bool = True):
+    def main_parser(self):
         """Start to create new arguments for the 'main' parser
-        
-        `ignored_by_subparser` is very important for any arguments of `main` parsers.
-        If `ignored_by_subparser` is True, any arguments created by this will only be passed to the handler for `main` 
-        parser. Otherwise, the arguments will be also passed to all the sub parser's handler. The different behaviors 
-        can affect the signature of the handlers directly. 
-        For example, supposed `main` parser has an argument ['verbose'] and a sub parser `load` has an argument 
-        ['-f', '--file']. If ['verbose'] is `ignored_by_subparser`, the sub parser's handler should be `func(file)`,
-        which ignores ['verbose']. Instead, if ['verbose'] is not `ignored_by_subparser`, the sub parser's handler 
-        should be `func(verbose, file)`. 
-        
-        Returns an _ArgCatArgumentBuilder for add_argument() arguments with settings.
+        Returns an _ArgCatArgumentBuilder for add_argument() or add_exclusive_argument() arguments with settings.
         """
         the_parser = self._select_parser_by_name('main')
-        return self.__ArgCatMainParserArgumentBuilder(the_parser, ignored_by_subparser)
+        return self.__ArgCatMainParserArgumentBuilder(the_parser)
     
     def sub_parser(self, parser_name: str):
         """Start to create new arguments for a sub parser.
