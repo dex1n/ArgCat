@@ -287,17 +287,16 @@ class _ArgCatBuilder:
         the_groups[group_name] = new_group
         return dict(new_group)
     
-    class __ArgCatArgumentBuilder:
-        def __init__(self, parser: dict, ignored_by_subparser: bool):
+    class __ArgCatParserArgumentBuilder:
+        def __init__(self, parser: dict) -> None:
             self._parser = parser
-            self._ignored_by_subparser = ignored_by_subparser
-        
+            
         def add(self, *args, **kwargs) -> dict:
             """Add a new argument
         
             `*args, **kwargs` is exactly the same as those in `argparse.add_argument()`. ArgCat just passes these as
-            they are into `argparse.add_argument()` without doing any further operation. So, if there is any error about 
-            your input, don't blame the cat. :P
+            they are into `argparse.add_argument()` without doing any further operation. So, if there is any 
+            complain/error due to your input, don't blame the cat. (DOGE):P
         
             Returns a dict contains the argument information from `*args, **kwargs` and ArgCat.
             """
@@ -305,21 +304,48 @@ class _ArgCatBuilder:
             new_argument[_ManifestConstants.NAME_OR_FLAGS] = args
             for k, v in kwargs.items():
                 new_argument[k] = v
-            new_argument[_ManifestConstants.IGNORED_BY_SUBPARSER] = self._ignored_by_subparser
             arguments: list = self._parser[_ManifestConstants.ARGUMENTS]
             arguments.append(new_argument)
-            return dict(new_argument)
+            return new_argument
     
-    def new_argument(self, parser_name: str = 'main', ignored_by_subparser: bool = True):
-        """Start to create new arguments for 'main' parser or a sub parser.
+    class __ArgCatMainParserArgumentBuilder(__ArgCatParserArgumentBuilder):
+        def __init__(self, parser: dict, ignored_by_subparser: bool):
+            super().__init__(parser)
+            self._ignored_by_subparser = ignored_by_subparser
+            
+        def add(self, *args, **kwargs) -> dict:
+            new_argument = super().add(*args, **kwargs)   
+            new_argument[_ManifestConstants.IGNORED_BY_SUBPARSER] = self._ignored_by_subparser
+            return new_argument
+    
+    def main_parser(self, ignored_by_subparser: bool = True):
+        """Start to create new arguments for 'main' parser
         
-        `parser_name` is optional and will be 'main' if omitted. If it's provided, it should be a valid parser name.
-        If the parser of the name does not exist, a new parser will be created.
+        `ignored_by_subparser` is very important for any arguments of `main` parsers.
+        If `ignored_by_subparser` is True, any arguments created by this will only be passed to the handler for `main` 
+        parser. Otherwise, the arguments will be also passed to all the sub parser's handler. The different behaviors 
+        can affect the signature of the handlers directly. 
+        For example, supposed `main` parser has an argument ['verbose'] and a sub parser `load` has an argument 
+        ['-f', '--file']. If ['verbose'] is `ignored_by_subparser`, the sub parser's handler should be `func(file)`,
+        which ignores ['verbose']. Instead, if ['verbose'] is not `ignored_by_subparser`, the sub parser's handler 
+        should be `func(verbose, file)`. 
         
         Returns an _ArgCatArgumentBuilder for add() arguments with settings.
         """
+        the_parser = self._select_parser_by_name('main')
+        return self.__ArgCatMainParserArgumentBuilder(the_parser, ignored_by_subparser)
+    
+    def sub_parser(self, parser_name: str):
+        """Start to create new arguments for a sub parser.
+        
+        `parser_name` should be a valid name string. 
+        If the parser of the name does not exist, a new parser named will be created.
+        
+        Returns an __ArgCatParserArgumentBuilder for add() arguments with settings.
+        """
         the_parser = self._select_parser_by_name(parser_name)
-        return self.__ArgCatArgumentBuilder(the_parser, ignored_by_subparser)
+        return self.__ArgCatParserArgumentBuilder(the_parser)
+    
     
 # Only public class for use. #      
 class ArgCat:
@@ -652,9 +678,9 @@ class ArgCat:
                     # Add this parser's dests.
                     dests_in_main_parser_should_not_be_ignored.extend(parser.dests)
                     parser_required_parameters = dests_in_main_parser_should_not_be_ignored
-                
+                    
                 # Compare two by putting them into sets and finding difference.
-                if not set(handler_parameters).difference(set(parser_required_parameters)):
+                if set(handler_parameters) == set(parser_required_parameters):
                     parser.handler_func = handler
                     _ArgCatPrinter.print(f"Added handler `{handler_name}{func_sig}` for the parser `{parser_name}`.",
                                          level=_ArgCatPrintLevel.VERBOSE)

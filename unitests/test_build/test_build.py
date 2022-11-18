@@ -14,7 +14,7 @@ class TestBuild(ArgCatUnitTest):
             #2. add_argument(option_string, option_string, ..., name=value, ...)
         
             # Add argument to the main parser
-            builder.new_argument(ignored_by_subparser=True).add('verbose', action='store_true')
+            builder.main_parser(ignored_by_subparser=False).add('verbose', action='store_true')
             #builder.add_argument('main', 'foo', '-o', '--fooa', action='store_false')  # This is a wrong usage.
             #builder.add_argument('main', '-v', '--verbose', action='store_true')
             # Add group for the sub parser
@@ -25,10 +25,10 @@ class TestBuild(ArgCatUnitTest):
                               description='This is the second group for process, which IS mutually exclusive', 
                               is_mutually_exclusive=True)
             # Add argument to sub parsers
-            builder.new_argument('process').add('-f', '--file', 
+            builder.sub_parser('process').add('-f', '--file', 
                                  nargs='?', dest='filename', type='str', group='process_group_1', required=True,
                                  help='The target file name.')
-            builder.new_argument('process').add('-s', '--size', nargs='1', dest='filesize', type='int', 
+            builder.sub_parser('process').add('-s', '--size', nargs='1', dest='filesize', type='int', 
                                  group='process_group_1', required=False, default='1024')
             
 
@@ -129,7 +129,7 @@ class TestBuild(ArgCatUnitTest):
                          "`process` parser's handler should be None after receiving an incorrect handler!")
         
         # Set a handler with correct paramters
-        def process_handler_with_correct_parameters(filename: str, filesize: int) -> str:
+        def process_handler_with_correct_parameters(verbose, filename: str, filesize: int) -> str:
             return f"process_handler: {filename}, {filesize}"
         self._argcat.add_parser_handler(parser_name='process', handler=process_handler_with_correct_parameters)
         
