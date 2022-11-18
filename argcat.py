@@ -330,7 +330,7 @@ class _ArgCatBuilder:
         which ignores ['verbose']. Instead, if ['verbose'] is not `ignored_by_subparser`, the sub parser's handler 
         should be `func(verbose, file)`. 
         
-        Returns an _ArgCatArgumentBuilder for add() arguments with settings.
+        Returns an _ArgCatArgumentBuilder for add_argument() arguments with settings.
         """
         the_parser = self._select_parser_by_name('main')
         return self.__ArgCatMainParserArgumentBuilder(the_parser, ignored_by_subparser)
@@ -341,7 +341,7 @@ class _ArgCatBuilder:
         `parser_name` should be a valid name string. 
         If the parser of the name does not exist, a new parser named will be created.
         
-        Returns an __ArgCatParserArgumentBuilder for add() arguments with settings.
+        Returns an __ArgCatParserArgumentBuilder for add_argument() arguments with settings.
         """
         the_parser = self._select_parser_by_name(parser_name)
         return self.__ArgCatParserArgumentBuilder(the_parser)
