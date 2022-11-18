@@ -19,9 +19,9 @@ class DifferentKindsOfHandlerProvider:
 class TestHandler(ArgCatUnitTest):
     def setUp(self):
         self._argcat = ArgCat()
-        self._argcat.load(self.abs_path_of_test_file("parse_args.yml"))
 
-    def test_normal_parse_args(self) -> None:
+    def test_parse_args_from_load(self) -> None:
+        self._argcat.load(self.abs_path_of_test_file("parse_args.yml"))
         self._argcat.add_handler_provider(DifferentKindsOfHandlerProvider())
         # 'test' is the positional argument for 'main'.
         init_result = self._argcat.parse_args(['test', 'init'])
@@ -39,6 +39,26 @@ class TestHandler(ArgCatUnitTest):
         config_result = self._argcat.parse_args(['test', 'config', '--username', 'cool_user_name'])
         self.assertEqual(config_result, 'config name = None, user_name = cool_user_name', f"Incorrect result '{config_result}' for 'config' parser")
 
+    def test_parse_args_from_build(self) -> None:
+        with self._argcat.build() as builder:
+            builder.main_parser().add_argument('verbose', action='store_true')
+            # Add group for the sub parser
+            builder.add_group('load', 'load_group', 
+                              description='This is a group for `load`, which IS mutually exclusive.', 
+                              is_mutually_exclusive=True)
+            # Add argument to sub parsers
+            builder.sub_parser('load').add_argument('-f', '--file', 
+                                 nargs='?', dest='filename', type='str', group='load_group', required=False,
+                                 help='The target file name.')
+            builder.sub_parser('load').add_argument('-l', '--link', 
+                                 nargs='?', dest='link', type='str', group='load_group', required=False, 
+                                 help='The target link.')
         
+        def main_handler(verbose):
+            print(f"main_handler => verbose: {verbose} .")
         
+        def load_handler(filename, link):
+            print(f"load_handler => filename: {filename}, link: {link} .")
         
+        self._argcat.add_parser_handler('main', main_handler)
+        self._argcat.add_parser_handler('load', load_handler)
