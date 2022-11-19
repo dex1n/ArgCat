@@ -12,10 +12,20 @@ class TestBuild(ArgCatUnitTest):
             #def add_argument(self, *args, **kwargs):
             #1. add_argument(dest, ..., name=value, ...)
             #2. add_argument(option_string, option_string, ..., name=value, ...)
-        
+
+            # Set program and subparser information.            
+            builder.set_prog_info(prog_name='Program for normal build test.', 
+                                  description="This is the description.")
+            builder.set_sub_parser_info(title='Sub parser title', 
+                                        description='Sub parser decription', 
+                                        help='Sub parser help')
+            
             # Add argument to the main parser
-            builder.main_parser().add_exclusive_argument('verbose', action='store_true')
-            #builder.main_parser().add_exclusive_argument()
+            
+            # Add an exclusive argument
+            builder.main_parser().add_exclusive_argument('verbose', action='store_true', default=False)
+            # Add a normal argument
+            builder.main_parser().add_argument('debug', action='store_true', default=False)
             
             #builder.add_argument('main', 'foo', '-o', '--fooa', action='store_false')  # This is a wrong usage.
             #builder.add_argument('main', '-v', '--verbose', action='store_true')
@@ -46,11 +56,11 @@ class TestBuild(ArgCatUnitTest):
         main_parser = self._argcat._arg_parsers['main']
 
         self.assertEqual(main_parser.name, 'main', "`main` parser's name is incorrect!")
-        self.assertEqual(main_parser.dests, ['verbose'], "`main` parser's dests are incorrect!")
+        self.assertEqual(main_parser.dests, ['verbose', 'debug'], "`main` parser's dests are incorrect!")
         self.assertNotEqual(main_parser.handler_func, None, 
                             "`main` parser's handler should not be None, since it has a default one!")
         self.assertNotEqual(main_parser.parser, None, "`main` parser's argument parser should be valid!")
-        self.assertTrue(len(main_parser.arguments) == 1, 
+        self.assertTrue(len(main_parser.arguments) == 2, 
                         "The number of the arguments in the `main` parser should be 1!")
 
         verbose_argument = main_parser.arguments[0]
@@ -136,8 +146,8 @@ class TestBuild(ArgCatUnitTest):
                          "`process` parser's handler should be None after receiving an incorrect handler!")
         
         # Set a handler with correct paramters
-        def process_handler_with_correct_parameters(filename: str, filesize: int) -> str:
-            return f"process_handler: {filename}, {filesize}"
+        def process_handler_with_correct_parameters(debug: bool, filename: str, filesize: int) -> str:
+            return f"process_handler: {debug}, {filename}, {filesize}"
         self._argcat.add_parser_handler(parser_name='process', handler=process_handler_with_correct_parameters)
         
         self.assertEqual(process_parser.handler_func, process_handler_with_correct_parameters, 

@@ -25,23 +25,26 @@ class TestHandler(ArgCatUnitTest):
         self._argcat.add_handler_provider(DifferentKindsOfHandlerProvider())
         # 'test' is the positional argument for 'main'.
         init_result = self._argcat.parse_args(['test', 'init'])
-        self.assertEqual(init_result, 'init', f"Incorrect result {init_result} for 'init' parser")
+        self.assertEqual(init_result, {'main': True, 'init': 'init'}, f"Incorrect result for 'init' parser")
 
         info_result = self._argcat.parse_args(['test', 'info', 'this'])
-        self.assertEqual(info_result, 'info this', f"Incorrect result {info_result} for 'info' parser")
+        self.assertEqual(info_result, {'main': True, 'info': 'info this'}, f"Incorrect result for 'info' parser")
 
         # config parser has a mutually exclusive group which contains --name and --username
         # So, this would raise argparse.ArgumentErro
         # config_result = self._argcat.parse_args(['test', 'config', '--name', 'cool_name', '--username', 'cool_user_name'])
         config_result = self._argcat.parse_args(['test', 'config', '--name', 'cool_name'])
-        self.assertEqual(config_result, 'config name = cool_name, user_name = None', f"Incorrect result '{config_result}' for 'config' parser")
+        self.assertEqual(config_result, {'main': True, 'config': 'config name = cool_name, user_name = None'}, f"Incorrect result for 'config' parser")
 
         config_result = self._argcat.parse_args(['test', 'config', '--username', 'cool_user_name'])
-        self.assertEqual(config_result, 'config name = None, user_name = cool_user_name', f"Incorrect result '{config_result}' for 'config' parser")
+        self.assertEqual(config_result, {'main': True, 'config': 'config name = None, user_name = cool_user_name'}, 
+                         f"Incorrect result for 'config' parser")
 
     def test_parse_args_from_build(self) -> None:
         with self._argcat.build() as builder:
-            builder.main_parser().add_argument('verbose', action='store_true')
+            builder.main_parser().add_exclusive_argument('verbose', type=int)
+            #builder.main_parser().add_exclusive_argument('-v', '--verbose', action='store_true', default=False)
+            #builder.main_parser().add_argument('debug', action='store_true', default=False)
             # Add group for the sub parser
             builder.sub_parser('load').add_group('load_group', 
                                                  description='This is a group for `load`, which IS mutually exclusive.', 
@@ -62,3 +65,10 @@ class TestHandler(ArgCatUnitTest):
         
         self._argcat.add_parser_handler('main', main_handler)
         self._argcat.add_parser_handler('load', load_handler)
+        
+        #first_result = self._argcat.parse_args(['verbose', 'debug', 'load', '-f', 'foo.py'])
+        #print(first_result)
+        self._argcat.parse_args(['1', 'load', '-f', 'foo.py'])
+        #self._argcat.parse_args(['1'])
+        
+        
