@@ -156,13 +156,25 @@ class _ArgCatParser:
         _ArgCatPrinter.print("Parsed args result: `{}`.".format(parsed_args))
         parsed_arguments_dict: Dict = dict(vars(parsed_args))
         sub_parser_name: str = parsed_arguments_dict.get(_ManifestConstants.SUB_PARSER_NAME, None)
+        
+        # ManifestConstants.SUB_PARSER_NAME is not needed for the handlers.
+        # So, delete it from the argument dict if it exists.
+        if _ManifestConstants.SUB_PARSER_NAME in parsed_arguments_dict:
+            del parsed_arguments_dict[_ManifestConstants.SUB_PARSER_NAME]
+        
+        parsed_arguments_dict_for_cur_parser = {}
+        # Firstly, pick all arguments parsed of the current parser.
+        for k, v in parsed_arguments_dict.items():
+            if k in self._dests:
+                parsed_arguments_dict_for_cur_parser[k] = v
+        
         # If the sub parser is needed, remove all arguments from the 
         # namspace belong to the main parser(parent parser) marked IGNORED_BY_SUBPARSER True. 
         # By default, all main parser's arguments will
         # stored in the args namespace even there is no the main arguments 
         # input. So, this step is to make sure the arguments input
         # into the handler correctly.
-        if sub_parser_name is not None:
+        if sub_parser_name:
             for argument in self._arguments:
                 # 'dest' value is the key of the argument in the parsed_arguments_dict.
                 dest: str = argument.dest
@@ -172,12 +184,10 @@ class _ArgCatParser:
                 if dest is not None and should_be_ignored:
                     del parsed_arguments_dict[dest]
         else:
-            sub_parser_name = self._name
-        # ManifestConstants.SUB_PARSER_NAME is not needed for the handlers.
-        # So, delete it from the argument dict if it exists.
-        if _ManifestConstants.SUB_PARSER_NAME in parsed_arguments_dict:
-            del parsed_arguments_dict[_ManifestConstants.SUB_PARSER_NAME]
-        return sub_parser_name, parsed_arguments_dict
+            parsed_arguments_dict = None    # If sub_parser_name is None, clear this make sure it cannot be used.
+        
+        # parsed_arguments_dict now is a dict contains arguments only for the sub parser.
+        return sub_parser_name, parsed_arguments_dict, parsed_arguments_dict_for_cur_parser
 
 class _ArgCatBuilder:
     def __init__(self, on_build_done: Callable):
@@ -502,8 +512,8 @@ class ArgCat:
                     del argument_meta_dict[_ManifestConstants.IGNORED_BY_SUBPARSER]
                 # from lexcical type to real type
                 # https://stackoverflow.com/questions/11775460/lexical-cast-from-string-to-type
-                lexical_type: str = argument_meta_dict.get(_ManifestConstants.TYPE, None)
-                if lexical_type is not None:
+                lexical_type = argument_meta_dict.get(_ManifestConstants.TYPE, None)
+                if lexical_type and isinstance(lexical_type, str):
                     argument_meta_dict[_ManifestConstants.TYPE] = locate(lexical_type)
                 # Add arguments considering we now support group and mutually exclusive group.
                 object_to_add_argument: Union[ArgumentParser, _ArgumentGroup, _MutuallyExclusiveGroup]
@@ -522,6 +532,8 @@ class ArgCat:
                     added_arg = object_to_add_argument.add_argument(*name_or_flags, **argument_meta_dict)
                 else: 
                     added_arg = object_to_add_argument.add_argument(**argument_meta_dict)
+                
+                print("added_arg=", added_arg)
                 added_arguments.append(added_arg) # Collect and later save them into _ArgCatParser()
                 new_additional_argument_info = {} 
                 if object_to_add_argument is not new_parser:
@@ -552,6 +564,27 @@ class ArgCat:
             _ArgCatPrinter.print("The default `main` handler is triggered but the main parser is not valid!", 
                                  level=_ArgCatPrintLevel.ERROR)
         return False
+    
+    def _call_parser_handler(self, parser: _ArgCatParser, parameters: dict) -> None:
+        if parser.handler_func:
+            try:
+                _ArgCatPrinter.print("Handler `{}` is handling `{}` with args: {} ..."
+                .format(parser.handler_func, parser.name, parameters))
+                result = parser.handler_func(**parameters)
+            # Catch all exception to print the actual exception raised in the handler besides
+            # TypeError. If we are only capturing TypeError, the actual error would be "covered" by the TypeError, which
+            # means all error would be raised as TypeError. This could be very confusing.
+            except Exception as exc:
+                func_sig = inspect.signature(parser.handler_func)
+                input_sig = str(tuple(parameters)).replace('\'','')
+                error_msg = "Handling function Exception: \"{}\", with function sig: {} and received parameters: {}."\
+                    .format(exc, func_sig, input_sig)
+                _ArgCatPrinter.print(error_msg, level=_ArgCatPrintLevel.ERROR, indent=1)
+            else:
+                return result
+        else:
+            _ArgCatPrinter.print("{} does not have any handler.".format(parser.name), 
+            level=_ArgCatPrintLevel.ERROR, indent=1)
     
     def load(self, manifest_file_path: str) -> None:
         """Load manifest from file at path.
@@ -586,7 +619,7 @@ class ArgCat:
         
         return _ArgCatBuilder(on_build_done)
         
-    def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Any:
+    def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> dict:
         """Start to parse args.
 
         This method is pretty much the same as the original parse_args of ArgumentParser, which means
@@ -598,31 +631,29 @@ class ArgCat:
         """
         _ArgCatPrinter.print("Parsing args ...")
         # Call the main parser's parse_args() to parse the arguments input.
-        sub_parser_name, parsed_arguments_dict = self._arg_parsers[_ManifestConstants.MAIN].parse_args(args=args, 
-        namespace=namespace)
-        parser = self._arg_parsers[sub_parser_name]
-        handler_func = parser.handler_func
-        if handler_func is not None:
-            try:
-                _ArgCatPrinter.print("Handler `{}` is handling `{}` with args: {} ..."
-                .format(handler_func, sub_parser_name, parsed_arguments_dict))
-                result = handler_func(**parsed_arguments_dict)
-            # Catch all exception to print the actual exception raised in the handler besides
-            # TypeError. If we are only capturing TypeError, the actual error would be "covered" by the TypeError, which
-            # means all error would be raised as TypeError. This could be very confusing.
-            except Exception as exc:
-                func_sig = inspect.signature(parser.handler_func)
-                input_sig = str(tuple(parsed_arguments_dict)).replace('\'','')
-                error_msg = "Handling function Exception: \"{}\", with function sig: {} and received parameters: {}."\
-                    .format(exc, func_sig, input_sig)
-                _ArgCatPrinter.print(error_msg, level=_ArgCatPrintLevel.ERROR, indent=1)
-            else:
-                return result
-        else:
-            _ArgCatPrinter.print("{} does not have any handler.".format(sub_parser_name), 
-            level=_ArgCatPrintLevel.ERROR, indent=1)
-        return None
-
+        sub_parser_name, sub_parser_parsed_arguments_dict, main_parser_parsed_arguments_dict = \
+        self._arg_parsers[_ManifestConstants.MAIN].parse_args(args=args, namespace=namespace)
+        
+        
+        print('sub_parser_name=', sub_parser_name)
+        print('sub_parser_parsed_arguments_dict=', sub_parser_parsed_arguments_dict)
+        print('main_parser_parsed_arguments_dict=', main_parser_parsed_arguments_dict)
+        
+        # The main parser's handler should be called every time before the sub parser's.
+        main_result = self._call_parser_handler(parser=self._arg_parsers[_ManifestConstants.MAIN], 
+                                                parameters=main_parser_parsed_arguments_dict)
+        
+        ret_result = {'main': main_result}
+        
+        # Only need to check sub_parser_name because sub_parser_parsed_arguments_dict can be None when a sub parser 
+        # is called without any arguments.
+        if sub_parser_name:
+            sub_parser = self._arg_parsers[sub_parser_name]
+            sub_result = self._call_parser_handler(parser=sub_parser, parameters=sub_parser_parsed_arguments_dict)
+            ret_result[sub_parser_name] = sub_result
+            
+        return ret_result
+    
     def add_handler_provider(self, handler_provider: Any) -> bool:
         """Set an object as the provider for ArgCat to find handlers.
 
@@ -692,7 +723,10 @@ class ArgCat:
                                          level=_ArgCatPrintLevel.VERBOSE)
                     return True
                 else:
-                    parser_require_parameters_str = functools.reduce(lambda a, b: f"{a}, {b}", parser_required_parameters)
+                    if parser_required_parameters:
+                        parser_require_parameters_str = functools.reduce(lambda a, b: f"{a}, {b}", parser_required_parameters)
+                    else:
+                        parser_require_parameters_str = ''
                     _ArgCatPrinter.print(f"Provided handler `{handler_name}{func_sig}` does not meet the " + 
                                          f"requirement of the parser `{parser_name}`, which requires a handler with parameters " +
                                          f"`({parser_require_parameters_str})`.", 
