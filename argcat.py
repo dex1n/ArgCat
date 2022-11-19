@@ -3,10 +3,10 @@
 import os
 import argparse
 import inspect
-import re
 import yaml
 import sys
 import functools
+from copy import deepcopy
 from pathlib import Path
 from pydoc import locate
 from enum import Enum, unique
@@ -275,6 +275,18 @@ class _ArgCatBuilder:
     class __ArgCatParserArgumentBuilder:
         def __init__(self, parser: dict) -> None:
             self._parser = parser
+        
+        def _add_argument(self, ignored_by_subparser: bool, *args, **kwargs) -> dict:
+            new_argument = {} # An empty argument. 
+            new_argument[_ManifestConstants.NAME_OR_FLAGS] = args
+            new_argument[_ManifestConstants.IGNORED_BY_SUBPARSER] = ignored_by_subparser
+            for k, v in kwargs.items():
+                new_argument[k] = v
+            arguments: list = self._parser[_ManifestConstants.ARGUMENTS]
+            arguments.append(new_argument)
+            # Make sure we don't return the actual dict of the argument information to prevent the internal dict from 
+            # being modified outside the builder unexpectedly.
+            return deepcopy(new_argument)
             
         def add_argument(self, *args, **kwargs) -> dict:
             """Add a new argument
@@ -285,15 +297,7 @@ class _ArgCatBuilder:
         
             Returns a dict contains the argument information from `*args, **kwargs` and ArgCat.
             """
-            new_argument = {} # An empty argument. 
-            new_argument[_ManifestConstants.NAME_OR_FLAGS] = args
-            new_argument[_ManifestConstants.IGNORED_BY_SUBPARSER] = False
-            for k, v in kwargs.items():
-                new_argument[k] = v
-            arguments: list = self._parser[_ManifestConstants.ARGUMENTS]
-            arguments.append(new_argument)
-            
-            return new_argument
+            return self._add_argument(False, *args, **kwargs)
         
         def add_group(self, group_name: str, description: Optional[str] = None, 
                       is_mutually_exclusive: bool = False) -> dict:
@@ -313,11 +317,12 @@ class _ArgCatBuilder:
             new_group[_ManifestConstants.IS_MUTUALLY_EXCLUSIVE] = is_mutually_exclusive
         
             the_groups[group_name] = new_group
-            return new_group
+            
+            # Make sure we don't return the actual dict of the group information to prevent the internal dict from being 
+            # modified outside the builder unexpectedly.
+            return deepcopy(new_group)
     
     class __ArgCatMainParserArgumentBuilder(__ArgCatParserArgumentBuilder):
-        def __init__(self, parser: dict):
-            super().__init__(parser)
         
         def add_exclusive_argument(self, *args, **kwargs) -> dict:
             """Add a new exclusive argument
@@ -340,9 +345,7 @@ class _ArgCatBuilder:
         
             Returns a dict contains the argument information from `*args, **kwargs` and ArgCat.
             """
-            new_argument = super().add_argument(*args, **kwargs)   
-            new_argument[_ManifestConstants.IGNORED_BY_SUBPARSER] = True
-            return new_argument
+            return self._add_argument(True, *args, **kwargs)
     
     def main_parser(self):
         """Start to create new arguments for the 'main' parser
@@ -389,6 +392,7 @@ class ArgCat:
         it will keep silence until the print_* methods are called.
         """
         self.chatter = chatter
+        self._is_building = False
         _ArgCatPrinter.print("Your cute argument parsing helper. >v<")
         self._reset()
 
@@ -594,6 +598,10 @@ class ArgCat:
 
         Returns None
         """
+        if self._is_building:
+            _ArgCatPrinter.print("ArgCat is building now so cannot load().", level=_ArgCatPrintLevel.WARNING)
+            return
+        
         self._reset()
         self._load_manifest(manifest_file_path)
         self._create_parsers()
@@ -609,12 +617,13 @@ class ArgCat:
         Returns an ArgCatBuilder.
         """
         self._reset()
-        
+        self._is_building = True
         _ArgCatPrinter.print(f"Building ...")
         # Create the parsers once the build is done.
         def on_build_done(manifest_data):
             self._manifest_data = manifest_data
             self._create_parsers()
+            self._is_building = False
             _ArgCatPrinter.print("Building DONE. Use print_xx functions for more information.")
         
         return _ArgCatBuilder(on_build_done)
@@ -634,23 +643,25 @@ class ArgCat:
         sub_parser_name, sub_parser_parsed_arguments_dict, main_parser_parsed_arguments_dict = \
         self._arg_parsers[_ManifestConstants.MAIN].parse_args(args=args, namespace=namespace)
         
-        
         print('sub_parser_name=', sub_parser_name)
         print('sub_parser_parsed_arguments_dict=', sub_parser_parsed_arguments_dict)
         print('main_parser_parsed_arguments_dict=', main_parser_parsed_arguments_dict)
         
-        # The main parser's handler should be called every time before the sub parser's.
-        main_result = self._call_parser_handler(parser=self._arg_parsers[_ManifestConstants.MAIN], 
-                                                parameters=main_parser_parsed_arguments_dict)
+        ret_result = {}
         
-        ret_result = {'main': main_result}
+        # The main parser's handler should be called for two cases: 
+        # 1. no sub parser called or 
+        # 2. sub parser called but main parser has arguments.
+        if sub_parser_name is None or main_parser_parsed_arguments_dict:
+            ret_result['main'] = self._call_parser_handler(parser=self._arg_parsers[_ManifestConstants.MAIN], 
+                                                           parameters=main_parser_parsed_arguments_dict)
         
         # Only need to check sub_parser_name because sub_parser_parsed_arguments_dict can be None when a sub parser 
         # is called without any arguments.
         if sub_parser_name:
             sub_parser = self._arg_parsers[sub_parser_name]
-            sub_result = self._call_parser_handler(parser=sub_parser, parameters=sub_parser_parsed_arguments_dict)
-            ret_result[sub_parser_name] = sub_result
+            ret_result[sub_parser_name] = self._call_parser_handler(parser=sub_parser, 
+                                                                    parameters=sub_parser_parsed_arguments_dict)
             
         return ret_result
     
