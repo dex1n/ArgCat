@@ -42,7 +42,7 @@ class TestHandler(ArgCatUnitTest):
 
     def test_parse_args_from_build(self) -> None:
         with self._argcat.build() as builder:
-            builder.main_parser().add_exclusive_argument('verbose', type=int)
+            #builder.main_parser().add_exclusive_argument('verbose', type=int)
             #builder.main_parser().add_exclusive_argument('-v', '--verbose', action='store_true', default=False)
             #builder.main_parser().add_argument('debug', action='store_true', default=False)
             # Add group for the sub parser
@@ -57,18 +57,19 @@ class TestHandler(ArgCatUnitTest):
                                  nargs='?', dest='link', type='str', group='load_group', required=False, 
                                  help='The target link.')
         
-        def main_handler(verbose):
-            print(f"main_handler => verbose: {verbose} .")
+        #def main_handler(verbose):
+        #    print(f"main_handler => verbose: {verbose} .")
         
         def load_handler(filename, link):
             print(f"load_handler => filename: {filename}, link: {link} .")
         
-        self._argcat.add_parser_handler('main', main_handler)
+        #self._argcat.add_parser_handler('main', main_handler)
         self._argcat.add_parser_handler('load', load_handler)
         
         #first_result = self._argcat.parse_args(['verbose', 'debug', 'load', '-f', 'foo.py'])
         #print(first_result)
-        self._argcat.parse_args(['1', 'load', '-f', 'foo.py'])
+        #self._argcat.parse_args(['1', 'load', '-f', 'foo.py'])
+        self._argcat.parse_args(['load', '-f', 'foo.py'])
         #self._argcat.parse_args(['1'])
         
         
