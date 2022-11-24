@@ -11,7 +11,7 @@ from pathlib import Path
 from pydoc import locate
 from enum import Enum, unique
 from argparse import ArgumentParser, Namespace, _ArgumentGroup, _MutuallyExclusiveGroup, _SubParsersAction, Action
-from typing import ClassVar, Container, List, Dict, Optional, Callable, Tuple, Any, Union
+from typing import ClassVar, List, Dict, Optional, Callable, Tuple, Any, Union
 
 
 # May not be the best solution for the constants, but it's fine for now.
@@ -530,6 +530,7 @@ class ArgCat:
                         del argument_meta_dict[_ManifestConstants.GROUP]
                         if created_group is not None:
                             object_to_add_argument = created_group
+                            
                 if name_or_flags:
                     if _ManifestConstants.NAME_OR_FLAGS in argument_meta_dict:
                         del argument_meta_dict[_ManifestConstants.NAME_OR_FLAGS]
@@ -537,7 +538,7 @@ class ArgCat:
                 else: 
                     added_arg = object_to_add_argument.add_argument(**argument_meta_dict)
                 
-                print("added_arg=", added_arg)
+                #print("added_arg =", added_arg)
                 added_arguments.append(added_arg) # Collect and later save them into _ArgCatParser()
                 new_additional_argument_info = {} 
                 if object_to_add_argument is not new_parser:
@@ -557,17 +558,16 @@ class ArgCat:
         self._arg_parsers[_ManifestConstants.MAIN].handler_func = self._default_main_handler
     
     # The return value for this is mainly for unittest.
-    def _default_main_handler(self, **kwargs) -> bool:
+    def _default_main_handler(self, **kwargs) -> dict:
         _ArgCatPrinter.print("The default `main` handler is triggered to print simple usage only. " + 
                             "Please set your `main` handler if necessary.", level=_ArgCatPrintLevel.VERBOSE)
         main_parser = self._arg_parsers.get(_ManifestConstants.MAIN, None)
         if main_parser:
             main_parser.parser.print_usage()
-            return True
         else:
             _ArgCatPrinter.print("The default `main` handler is triggered but the main parser is not valid!", 
                                  level=_ArgCatPrintLevel.ERROR)
-        return False
+        return kwargs
     
     def _call_parser_handler(self, parser: _ArgCatParser, parameters: dict) -> None:
         if parser.handler_func:
@@ -587,7 +587,7 @@ class ArgCat:
             else:
                 return result
         else:
-            _ArgCatPrinter.print("{} does not have any handler.".format(parser.name), 
+            _ArgCatPrinter.print("Parser `{}` does not have any handler.".format(parser.name), 
             level=_ArgCatPrintLevel.ERROR, indent=1)
     
     def load(self, manifest_file_path: str) -> None:
@@ -643,9 +643,9 @@ class ArgCat:
         sub_parser_name, sub_parser_parsed_arguments_dict, main_parser_parsed_arguments_dict = \
         self._arg_parsers[_ManifestConstants.MAIN].parse_args(args=args, namespace=namespace)
         
-        print('sub_parser_name=', sub_parser_name)
-        print('sub_parser_parsed_arguments_dict=', sub_parser_parsed_arguments_dict)
-        print('main_parser_parsed_arguments_dict=', main_parser_parsed_arguments_dict)
+        #print('sub_parser_name=', sub_parser_name)
+        #print('sub_parser_parsed_arguments_dict=', sub_parser_parsed_arguments_dict)
+        #print('main_parser_parsed_arguments_dict=', main_parser_parsed_arguments_dict)
         
         ret_result = {}
         
