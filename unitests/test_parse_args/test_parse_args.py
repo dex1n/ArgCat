@@ -46,6 +46,7 @@ class TestHandler(ArgCatUnitTest):
             builder.main_parser().add_exclusive_argument('-v','--verbose', action='store_true', default=False)
             builder.main_parser().add_argument('-d', '--debug', action='store_true', default=False)
             # Add group for the sub parser
+            builder.add_sub_parser('process')
             builder.sub_parser('process').add_group('process_group', 
                                                  description='This is a mutually exclusive group for `process`.', 
                                                  is_mutually_exclusive=True)

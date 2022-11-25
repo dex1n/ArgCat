@@ -30,6 +30,13 @@ class TestBuild(ArgCatUnitTest):
             #builder.add_argument('main', 'foo', '-o', '--fooa', action='store_false')  # This is a wrong usage.
             #builder.add_argument('main', '-v', '--verbose', action='store_true')
             
+            # Attempt to add an existed parser.
+            ret = builder.add_sub_parser('main')
+            self.assertIsNone(ret, "Adding an existed parser should not work!")
+            
+            # Add normal sub parser `process`.
+            builder.add_sub_parser('process', description='This is a sub parser for processing file or link.')
+            
             # Add group for the sub parser
             builder.sub_parser('process').add_group(group_name='process_group_1', 
                                                     description='This is the first group for process, \
