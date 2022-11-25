@@ -128,3 +128,6 @@ class TestHandler(ArgCatUnitTest):
         # appear at the same time in **kwargs.
         # parsed = self._argcat.parse_args(['-v', 'True', 'process', '--file', 'foo.py', '--link', 'www.haha.com'])
         # The error should be `argparse.ArgumentError: argument -l/--link: not allowed with argument -f/--file`
+        
+        self._argcat.print_parser_handlers()
+        self._argcat.print_parsers()
