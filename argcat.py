@@ -219,8 +219,14 @@ class _ArgCatBuilder:
         parsers: Dict = self._manifest_data[_ManifestConstants.PARSERS]
         # Select the parser by name.
         # It may be a 'main' parser or any other sub parser.
-        the_parser = parsers.setdefault(parser_name, { _ManifestConstants.ARGUMENTS: [] })
+        the_parser = parsers.setdefault(parser_name, None)
         return the_parser
+    
+    def _add_parser_with_name(self, parser_name: str) -> Dict:
+        parsers: Dict = self._manifest_data[_ManifestConstants.PARSERS]
+        new_parser = { _ManifestConstants.ARGUMENTS: [] }
+        parsers[parser_name] = new_parser
+        return new_parser
     
     def set_prog_info(self, prog_name: Optional[str] = None, description: Optional[str] = None) -> Dict:
         """Set basic information of program.
@@ -281,6 +287,29 @@ class _ArgCatBuilder:
             del self._manifest_data[_ManifestConstants.META][_ManifestConstants.SUBPARSER]
             return True
         return False
+    
+    def add_sub_parser(self, parser_name: str, **kwargs: str) -> Optional[Dict]:
+        """Add a new sub parser
+        
+        `parser_name` is the name of the new sub parser to add. If there has already been a parser with the same name
+        added, this method will fail and None will be returned.
+        
+        `**kwargs` is totally the same as the one input into argparse's add_parser(). ArgCat does not modify it but just
+        stores it and passes it into argparse's add_parser() in _create_parsers().
+        
+        Returns a dict contains the parser's information from `*args, **kwargs` and ArgCat, or 
+        None if a parser with the same name has already existed.
+        """
+        the_parser = self._select_parser_by_name(parser_name)
+        if the_parser:
+            _ArgCatPrinter.print(f"`{parser_name}` parser has already existed and cannot be added again.", 
+                                 level=_ArgCatPrintLevel.ERROR)
+            return None
+        
+        new_parser = self._add_parser_with_name(parser_name)
+        for k,v in kwargs.items():
+            new_parser[k] = v
+        return deepcopy(new_parser)
     
     class __ArgCatParserArgumentBuilder:
         _parser: Dict # parser dict to add argumemt information
@@ -361,22 +390,26 @@ class _ArgCatBuilder:
     
     def main_parser(self) -> __ArgCatMainParserArgumentBuilder:
         """Start to create new arguments for the 'main' parser
-        Returns an _ArgCatArgumentBuilder for add_argument() or add_exclusive_argument() arguments with settings.
+        Returns an _ArgCatArgumentBuilder for add_argument() or add_exclusive_argument() arguments with configs.
         """
         the_parser = self._select_parser_by_name('main')
+        # Theoretically, the_parser should never be None forever. 
         return self.__ArgCatMainParserArgumentBuilder(the_parser)
     
-    def sub_parser(self, parser_name: str) -> __ArgCatParserArgumentBuilder:
+    def sub_parser(self, parser_name: str) -> Optional[__ArgCatParserArgumentBuilder]:
         """Start to create new arguments for a sub parser.
         
-        `parser_name` should be a valid name string. 
-        If the parser of the name does not exist, a new parser named will be created.
+        `parser_name` should be a valid name string other than `main`, which has already be used by the main parser by
+        default. If the parser of the name does not exist, an error would be reported.
         
-        Returns an __ArgCatParserArgumentBuilder for add_argument() arguments with settings.
+        Returns an __ArgCatParserArgumentBuilder for add_argument() arguments with configs, or
+        None if the parser is not valid.
         """
         the_parser = self._select_parser_by_name(parser_name)
-        return self.__ArgCatParserArgumentBuilder(the_parser)
-    
+        if the_parser:
+            return self.__ArgCatParserArgumentBuilder(the_parser)
+        _ArgCatPrinter.print(f"`{parser_name}` parser is not valid.", level=_ArgCatPrintLevel.ERROR)
+        return None
     
 # Only public class for use. #      
 class ArgCat:
@@ -501,7 +534,7 @@ class ArgCat:
                 if argument_subparsers is None:
                     argument_subparsers: _SubParsersAction = main_parser.add_subparsers(**sub_parser_meta_dict)
                 new_parser = argument_subparsers.add_parser(parser_name, **parser_meta_dict)
-            
+                
             # Add argument groups
             argument_groups_dict = parser_dict.get(_ManifestConstants.ARGUMENT_GROUPS, None)
             parser_argument_groups_dict: Optional[Dict]
