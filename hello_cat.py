@@ -34,41 +34,22 @@ class Foo:
         print("info_handler with detail: {}".format(detail))
 
 # Regular function
-@ArgCat.handler("maina")
-def main_handler():
-    test = "main"
+@ArgCat.handler("main")
+def main_handler(test):
     print("main_handler {}".format(test))
 
-@ArgCat.handler("data_file")
-def data_file_handler(filename):
-    print("data_file_handler {}".format(filename))
-
 def main():
-    argcat = ArgCat(chatter=True)
-    
-    with argcat.build() as builder:
-        #builder.add_argument(recipe="nothingelsematter")
-        #builder.add_group(name='test_group', parser_name='haha', description="a test group", is_mutually_exclusive=True)
-        #builder.add_argument(parser_name='haha', recipe="-f/--file 1>filename:int?", arg_type='str', 
-        #                     group_name='test_group', default="./__init__.py")
-        #builder.add_argument(parser_name='haha', recipe="-t/--type 1>type:str?", arg_type='int', group_name='test_group', default=1)
-        
-        builder.add_argument('main', '-faaaaa', '-----file', '--------aaaa')
-        
-        
+    argcat = ArgCat(chatter=False)
+    argcat.load("hello_cat.yml")
+    foo = Foo()
+    foo.value = "new value"
+    # Find handlers in __main__
     argcat.add_handler_provider(sys.modules['__main__'])
-    
-    def test(filename: str, type):
-        print(f"test oh~ filename = {filename}, type = {type}")
-    
-    argcat.add_parser_handler('main', test)
-    
-    
-    
-    #argcat.print_parsers()
-    #argcat.print_parser_handlers()
+    # Find handlers in Foo
+    argcat.add_handler_provider(foo)
+    argcat.print_parsers()
+    argcat.print_parser_handlers()
     argcat.parse_args()
-    
     
 if __name__ == '__main__':
     main()
