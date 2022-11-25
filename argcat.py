@@ -106,17 +106,25 @@ class _ArgCatPrinter:
         print(final_msg)
 
 class _ArgCatParser:
-    def __init__(self, parser: ArgumentParser, name: str, arguments: List[Action], additional_arguments_info: dict, 
+    _parser: ArgumentParser
+    _name: str
+    _arguments: List[Dict]
+    _dests: List[str]
+    _groups: Optional[Dict]
+    _handler_func: Optional[Callable]
+    _additional_argument_info: Optional[dict]
+    
+    def __init__(self, parser: ArgumentParser, name: str, arguments: List[Action], additional_arguments_info: Dict, 
                  groups: Optional[Dict] = None, handler_func: Optional[Callable] = None):
-        self._parser: ArgumentParser = parser
-        self._name: str = name
-        self._arguments: List[Dict] = arguments
+        self._parser = parser
+        self._name = name
+        self._arguments = arguments
         self._dests = [arg.dest for arg in arguments]
-        self._groups: Optional[Dict] = groups
-        self._handler_func: Optional[Callable] = handler_func
+        self._groups = groups
+        self._handler_func = handler_func
         
         # {argument.dest: {_ManifestConstants.IGNORED_BY_SUBPARSER: None, _ManifestConstants.GROUP: None}}
-        self._additional_argument_info: Optional[dict] = additional_arguments_info
+        self._additional_argument_info = additional_arguments_info
     
     @property
     def name(self) -> str:
@@ -147,10 +155,10 @@ class _ArgCatParser:
         return self._parser
     
     @property
-    def additional_arguments_info(self) -> dict:
+    def additional_arguments_info(self) -> Dict:
         return self._additional_argument_info
     
-    def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Tuple[str, Dict]:
+    def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Tuple[str, Dict, Dict]:
         # Call the main parser's parse_args() to parse the arguments input.
         parsed_args: Namespace = self._parser.parse_args(args=args, namespace=namespace)
         _ArgCatPrinter.print("Parsed args result: `{}`.".format(parsed_args))
@@ -190,8 +198,10 @@ class _ArgCatParser:
         return sub_parser_name, parsed_arguments_dict, parsed_arguments_dict_for_cur_parser
 
 class _ArgCatBuilder:
+    _manifest_data: Dict = {}
+    _on_build_done: Callable[[Dict], None]
+    
     def __init__(self, on_build_done: Callable):
-        self._manifest_data = {}
         self._on_build_done = on_build_done
     
     # For with statement: enter is before `with` body.
@@ -205,14 +215,14 @@ class _ArgCatBuilder:
     def __exit__(self, type, value, traceback):
         self._on_build_done(self._manifest_data)
     
-    def _select_parser_by_name(self, parser_name: str) -> dict:
+    def _select_parser_by_name(self, parser_name: str) -> Dict:
         parsers: Dict = self._manifest_data[_ManifestConstants.PARSERS]
         # Select the parser by name.
         # It may be a 'main' parser or any other sub parser.
         the_parser = parsers.setdefault(parser_name, { _ManifestConstants.ARGUMENTS: [] })
         return the_parser
     
-    def set_prog_info(self, prog_name: Optional[str] = None, description: Optional[str] = None) -> dict:
+    def set_prog_info(self, prog_name: Optional[str] = None, description: Optional[str] = None) -> Dict:
         """Set basic information of program.
         
         Quite straightfoward method to use. 
@@ -235,7 +245,7 @@ class _ArgCatBuilder:
                 }
     
     def set_sub_parser_info(self, title: Optional[str] = None, description: Optional[str] = None, 
-                            help: Optional[str] = None) -> dict:
+                            help: Optional[str] = None) -> Dict:
         """Create and set sub parser info.
         
         If user call this, we are assuming user wants to create and set sub parser information, even if user input None
@@ -256,7 +266,7 @@ class _ArgCatBuilder:
             sub_parser_info[_ManifestConstants.HELP] = help
         self._manifest_data[_ManifestConstants.META][_ManifestConstants.SUBPARSER] = sub_parser_info
         
-        return dict(sub_parser_info)
+        return deepcopy(sub_parser_info)
     
     def remove_sub_parser_info(self) -> bool:
         """Remove sub parser information.
@@ -273,34 +283,36 @@ class _ArgCatBuilder:
         return False
     
     class __ArgCatParserArgumentBuilder:
-        def __init__(self, parser: dict) -> None:
+        _parser: Dict # parser dict to add argumemt information
+        
+        def __init__(self, parser: Dict) -> None:
             self._parser = parser
         
-        def _add_argument(self, ignored_by_subparser: bool, *args, **kwargs) -> dict:
+        def _add_argument(self, ignored_by_subparser: bool, *args: str, **kwargs: str) -> Dict:
             new_argument = {} # An empty argument. 
             new_argument[_ManifestConstants.NAME_OR_FLAGS] = args
             new_argument[_ManifestConstants.IGNORED_BY_SUBPARSER] = ignored_by_subparser
             for k, v in kwargs.items():
                 new_argument[k] = v
-            arguments: list = self._parser[_ManifestConstants.ARGUMENTS]
+            arguments: List = self._parser[_ManifestConstants.ARGUMENTS]
             arguments.append(new_argument)
             # Make sure we don't return the actual dict of the argument information to prevent the internal dict from 
             # being modified outside the builder unexpectedly.
             return deepcopy(new_argument)
             
-        def add_argument(self, *args, **kwargs) -> dict:
+        def add_argument(self, *args: str, **kwargs: str) -> Dict:
             """Add a new argument
         
             `*args, **kwargs` is exactly the same as those in `argparse.add_argument()`. ArgCat just passes these as
             they are into `argparse.add_argument()` without doing any further operation. So, if there is any 
-            complain/error due to your input, don't blame the cat. (DOGE):P
+            complain/error due to your input, don't blame the cat. LOL. (DOGE):P
         
             Returns a dict contains the argument information from `*args, **kwargs` and ArgCat.
             """
             return self._add_argument(False, *args, **kwargs)
         
         def add_group(self, group_name: str, description: Optional[str] = None, 
-                      is_mutually_exclusive: bool = False) -> dict:
+                      is_mutually_exclusive: bool = False) -> Optional[Dict]:
             """Add a new group for a parser.
             Returns a dict contains the group information or None if any errors.
             """
@@ -308,8 +320,8 @@ class _ArgCatBuilder:
             new_group = the_groups.get(group_name, {})
         
             if new_group:
-                _ArgCatPrinter.print(f"Failed to add the group `{group_name}`, as there has already been a group of the \
-                                    same name.", 
+                _ArgCatPrinter.print(f"Failed to add the group `{group_name}`, as there has already been a group of \
+                                     the same name.", 
                                     level=_ArgCatPrintLevel.WARNING)
                 return None
         
@@ -324,7 +336,7 @@ class _ArgCatBuilder:
     
     class __ArgCatMainParserArgumentBuilder(__ArgCatParserArgumentBuilder):
         
-        def add_exclusive_argument(self, *args, **kwargs) -> dict:
+        def add_exclusive_argument(self, *args: str, **kwargs: str) -> Dict:
             """Add a new exclusive argument
             
             An exclusive argument for `main` parser is one argument whose `ignored_by_subparser` property is True,
@@ -347,14 +359,14 @@ class _ArgCatBuilder:
             """
             return self._add_argument(True, *args, **kwargs)
     
-    def main_parser(self):
+    def main_parser(self) -> __ArgCatMainParserArgumentBuilder:
         """Start to create new arguments for the 'main' parser
         Returns an _ArgCatArgumentBuilder for add_argument() or add_exclusive_argument() arguments with settings.
         """
         the_parser = self._select_parser_by_name('main')
         return self.__ArgCatMainParserArgumentBuilder(the_parser)
     
-    def sub_parser(self, parser_name: str):
+    def sub_parser(self, parser_name: str) -> __ArgCatParserArgumentBuilder:
         """Start to create new arguments for a sub parser.
         
         `parser_name` should be a valid name string. 
@@ -437,9 +449,13 @@ class ArgCat:
             level=_ArgCatPrintLevel.ERROR)
 
     def _create_parsers(self) -> None:
-        if not self._manifest_data:
-            return
         _ArgCatPrinter.print("Creating parsers ...")
+        
+        if not self._manifest_data:
+            _ArgCatPrinter.print("Fatal error. No valid information found for parsers! Exit ...", 
+                                 level=_ArgCatPrintLevel.ERROR)
+            return
+        
         meta_dict: Dict = self._manifest_data[_ManifestConstants.META]
         
         # Main parser created on data from _manifest_data
@@ -538,7 +554,6 @@ class ArgCat:
                 else: 
                     added_arg = object_to_add_argument.add_argument(**argument_meta_dict)
                 
-                #print("added_arg =", added_arg)
                 added_arguments.append(added_arg) # Collect and later save them into _ArgCatParser()
                 new_additional_argument_info = {} 
                 if object_to_add_argument is not new_parser:
@@ -552,13 +567,15 @@ class ArgCat:
                                                            groups=parser_argument_groups_dict)
 
         if _ManifestConstants.MAIN not in self._arg_parsers:
-            self._arg_parsers[_ManifestConstants.MAIN] = _ArgCatParser(parser=main_parser, name=_ManifestConstants.MAIN, arguments=[])
+            self._arg_parsers[_ManifestConstants.MAIN] = _ArgCatParser(parser=main_parser, 
+                                                                       name=_ManifestConstants.MAIN, 
+                                                                       arguments=[])
         
         # A very private way to set a default main handler in case user does not provide any handler.
         self._arg_parsers[_ManifestConstants.MAIN].handler_func = self._default_main_handler
     
     # The return value for this is mainly for unittest.
-    def _default_main_handler(self, **kwargs) -> dict:
+    def _default_main_handler(self, **kwargs: str) -> Dict:
         _ArgCatPrinter.print("The default `main` handler is triggered to print simple usage only. " + 
                             "Please set your `main` handler if necessary.", level=_ArgCatPrintLevel.VERBOSE)
         main_parser = self._arg_parsers.get(_ManifestConstants.MAIN, None)
@@ -569,7 +586,7 @@ class ArgCat:
                                  level=_ArgCatPrintLevel.ERROR)
         return kwargs
     
-    def _call_parser_handler(self, parser: _ArgCatParser, parameters: dict) -> None:
+    def _call_parser_handler(self, parser: _ArgCatParser, parameters: Dict) -> Any:
         if parser.handler_func:
             try:
                 _ArgCatPrinter.print("Handler `{}` is handling `{}` with args: {} ..."
@@ -589,6 +606,7 @@ class ArgCat:
         else:
             _ArgCatPrinter.print("Parser `{}` does not have any handler.".format(parser.name), 
             level=_ArgCatPrintLevel.ERROR, indent=1)
+        return None
     
     def load(self, manifest_file_path: str) -> None:
         """Load manifest from file at path.
@@ -628,7 +646,7 @@ class ArgCat:
         
         return _ArgCatBuilder(on_build_done)
         
-    def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> dict:
+    def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Dict:
         """Start to parse args.
 
         This method is pretty much the same as the original parse_args of ArgumentParser, which means
@@ -642,10 +660,6 @@ class ArgCat:
         # Call the main parser's parse_args() to parse the arguments input.
         sub_parser_name, sub_parser_parsed_arguments_dict, main_parser_parsed_arguments_dict = \
         self._arg_parsers[_ManifestConstants.MAIN].parse_args(args=args, namespace=namespace)
-        
-        #print('sub_parser_name=', sub_parser_name)
-        #print('sub_parser_parsed_arguments_dict=', sub_parser_parsed_arguments_dict)
-        #print('main_parser_parsed_arguments_dict=', main_parser_parsed_arguments_dict)
         
         ret_result = {}
         
@@ -674,8 +688,10 @@ class ArgCat:
         Returns a bool value which is whether all the handlers are set successfully.
         """
         _ArgCatPrinter.print(f"Setting handlers from provider: `{handler_provider}` ...")
-        all_handler_func_dicts: List[Dict] = [{'name': name, 'func': obj} for name, obj in 
-        inspect.getmembers(handler_provider) if ((inspect.ismethod(obj) or inspect.isfunction(obj)) and hasattr(obj, "argcat_argument_parser_name"))]
+        all_handler_func_dicts: List[Dict] = [{'name': name, 'func': obj} 
+                                              for name, obj in inspect.getmembers(handler_provider) 
+                                              if ((inspect.ismethod(obj) or inspect.isfunction(obj)) and 
+                                                  hasattr(obj, "argcat_argument_parser_name"))]
         # The functions retrieved will be in alphabet order. So, if there are method/functions with duplicate names, 
         # the first one in the sequence will be added and the other ones will be discarded.
         if not all_handler_func_dicts:
@@ -735,12 +751,13 @@ class ArgCat:
                     return True
                 else:
                     if parser_required_parameters:
-                        parser_require_parameters_str = functools.reduce(lambda a, b: f"{a}, {b}", parser_required_parameters)
+                        parser_require_parameters_str = functools.reduce(lambda a, b: f"{a}, {b}", 
+                                                                         parser_required_parameters)
                     else:
                         parser_require_parameters_str = ''
                     _ArgCatPrinter.print(f"Provided handler `{handler_name}{func_sig}` does not meet the " + 
-                                         f"requirement of the parser `{parser_name}`, which requires a handler with parameters " +
-                                         f"`({parser_require_parameters_str})`.", 
+                                         f"requirement of the parser `{parser_name}`, which requires a handler with " +
+                                         "parameters " + f"`({parser_require_parameters_str})`.", 
                                          level=_ArgCatPrintLevel.WARNING)
                     return False
             else:
@@ -774,6 +791,9 @@ class ArgCat:
         for parser_name, parser in self._arg_parsers.items():
             _ArgCatPrinter.print("{}:".format(parser_name), indent=1, level=_ArgCatPrintLevel.IF_NECESSARY)
             for arg in parser.arguments:
-                dest = arg.get(_ManifestConstants.DEST, None)
-                name = arg.get(_ManifestConstants.NAME_OR_FLAGS, dest)
+                dest = arg.dest
+                if arg.option_strings:
+                    name = arg.option_strings
+                else:
+                    name = dest
                 _ArgCatPrinter.print("{} -> {}".format(name, dest), indent=2, level=_ArgCatPrintLevel.IF_NECESSARY)
