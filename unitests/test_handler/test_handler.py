@@ -91,7 +91,7 @@ class TestHandler(ArgCatUnitTest):
         self.assertNotEqual(self._argcat._arg_parsers['main'].handler_func, None, 
         "Default `main` parser's handler is not valid!")
         # Run it to prove it's working.
-        self.assertEqual(self._argcat._arg_parsers['main'].handler_func(), True, 
+        self.assertEqual(self._argcat._arg_parsers['main'].handler_func(), {}, 
         "Default `main` parser's handler is not working!")
     
     def test_add_normal_handlers(self) -> None:

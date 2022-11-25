@@ -16,7 +16,7 @@ class TestLoad(ArgCatUnitTest):
         self.assertEqual(main_parser.name, 'main', f"Incorrect parser name {main_parser.name} for 'main' parser")
         self.assertEqual(len(main_parser.arguments), 1, "Incorrect size of arguments for 'main' parser.")
         main_parser_arguments = main_parser.arguments
-        self.assertEqual(main_parser_arguments[0].get(_ManifestConstants.DEST, None), 'test', "Incorrect argument DEST for 'main' parser.")
+        self.assertEqual(main_parser_arguments[0].dest, 'test', "Incorrect argument DEST for 'main' parser.")
         # -- init parser
         self.assertIsNotNone(self._argcat._arg_parsers['init'], "'init' parser missing.")
         init_parser = self._argcat._arg_parsers['init']
@@ -28,7 +28,7 @@ class TestLoad(ArgCatUnitTest):
         self.assertEqual(len(config_parser.arguments), 2, "Incorrect size of arguments for 'config' parser.")
         self.assertEqual(len(config_parser.groups), 1, "Incorrect size of groups for 'config' parser.")
         # Handler
-        self.assertIsNone(self._argcat._arg_parsers['main'].handler_func, "'main' parser handler should be None.")
+        self.assertIsNotNone(self._argcat._arg_parsers['main'].handler_func, "'main' parser handler should not be None.")
         self.assertIsNone(self._argcat._arg_parsers['init'].handler_func, "'init' parser handler should be None.")
         self.assertIsNone(self._argcat._arg_parsers['info'].handler_func, "'info' parser handler should be None.")
         self.assertIsNone(self._argcat._arg_parsers['config'].handler_func, "'config' parser handler should be None.")
