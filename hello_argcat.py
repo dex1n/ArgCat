@@ -40,7 +40,7 @@ def main_handler(test):
 
 def main():
     argcat = ArgCat(chatter=False)
-    argcat.load("hello_cat.yml")
+    argcat.load("hello_argcat.yml")
     foo = Foo()
     foo.value = "new value"
     # Find handlers in __main__
