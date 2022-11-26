@@ -71,7 +71,7 @@ def main():
         
     # Find handlers in Foo
     argcat.add_handler_provider(foo)
-    argcat.add_parser_handler(parser_name='main', handler=main_handler)
+    argcat.set_parser_handler(parser_name='main', handler=main_handler)
     
     argcat.print_parsers()
     argcat.print_parser_handlers()

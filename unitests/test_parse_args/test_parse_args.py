@@ -95,7 +95,7 @@ class TestHandler(ArgCatUnitTest):
         def main_handler(foo, verbose, debug):
             return f"main_handler => foo: {foo}, verbose: {verbose}, debug: {debug}."
         
-        self._argcat.add_parser_handler(parser_name='main', handler=main_handler)
+        self._argcat.set_parser_handler(parser_name='main', handler=main_handler)
         
         parsed = self._argcat.parse_args(['-v', '-d', 'False'])
         
@@ -107,7 +107,7 @@ class TestHandler(ArgCatUnitTest):
         def process_handler(debug, filename, link):
             return f"process_handler => debug: {debug}, filename: {filename}, link: {link}."
 
-        self._argcat.add_parser_handler(parser_name='process', handler=process_handler)
+        self._argcat.set_parser_handler(parser_name='process', handler=process_handler)
         
         parsed = self._argcat.parse_args(['-v', '-d', 'False'])
         

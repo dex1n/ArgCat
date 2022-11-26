@@ -98,7 +98,7 @@ class TestHandler(ArgCatUnitTest):
         # Main handler
         def main_handler(test) -> str:
             return f'main_handler:{test}'
-        self._argcat.add_parser_handler(parser_name='main', handler=main_handler)
+        self._argcat.set_parser_handler(parser_name='main', handler=main_handler)
         self.assertEqual(self._argcat._arg_parsers['main'].handler_func('parameter'), 'main_handler:parameter', 
         "Parser handler for `main` is wrong!")
         
@@ -106,21 +106,21 @@ class TestHandler(ArgCatUnitTest):
         # init handler with no arguments
         def init_handler() -> str:
             return 'init_handler'
-        self._argcat.add_parser_handler(parser_name='init', handler=init_handler)
+        self._argcat.set_parser_handler(parser_name='init', handler=init_handler)
         self.assertEqual(self._argcat._arg_parsers['init'].handler_func(), 'init_handler', 
         "Parser handler for `init` is wrong!")
         
         # info handler with one argument
         def info_handler(detail) -> str:
             return f'info_handler:{detail}'
-        self._argcat.add_parser_handler(parser_name='info', handler=info_handler)
+        self._argcat.set_parser_handler(parser_name='info', handler=info_handler)
         self.assertEqual(self._argcat._arg_parsers['info'].handler_func('detail'), 'info_handler:detail', 
         "Parser handler for `info` is wrong!")
 
         # config handler with two arguments
         def config_handler(name, user_name) -> str:
             return f'config_handler:{name},{user_name}'
-        self._argcat.add_parser_handler(parser_name='config', handler=config_handler)
+        self._argcat.set_parser_handler(parser_name='config', handler=config_handler)
         self.assertEqual(self._argcat._arg_parsers['config'].handler_func('Kevin', 'Cool-K'), 'config_handler:Kevin,Cool-K', 
         "Parser handler for `config` is wrong!")
         
@@ -128,14 +128,14 @@ class TestHandler(ArgCatUnitTest):
         # add handler without required args for 'main'
         def main_handler_without_required_args() -> str:
             return 'main_handler_without_required_args'
-        self._argcat.add_parser_handler(parser_name='main', handler=main_handler_without_required_args)
+        self._argcat.set_parser_handler(parser_name='main', handler=main_handler_without_required_args)
         self.assertEqual(self._argcat._arg_parsers['main'].handler_func, self._argcat._default_main_handler, 
                          "Parser handler for `main` should not be one without any argument!")
         
         # add handler without required args for 'info'
         def info_handler_without_args() -> str:
             return 'info_handler_without_args'
-        self.assertEqual(self._argcat.add_parser_handler(parser_name='info', handler=info_handler_without_args), False, 
+        self.assertEqual(self._argcat.set_parser_handler(parser_name='info', handler=info_handler_without_args), False, 
                          "A parser handler without any args for `info` parser should not be taken!")
         self.assertEqual(self._argcat._arg_parsers['info'].handler_func, None, 
                          "`info` parser should be None after a failed adding!")
@@ -144,7 +144,7 @@ class TestHandler(ArgCatUnitTest):
         def config_handler_without_enough_args(name) -> str:
             return f'config_handler_without_enough_args:{name}'
         self.assertEqual(
-            self._argcat.add_parser_handler(parser_name='config', handler=config_handler_without_enough_args), False, 
+            self._argcat.set_parser_handler(parser_name='config', handler=config_handler_without_enough_args), False, 
             "A parser handler with less args for `config` parser should not be taken!")
         self.assertEqual(self._argcat._arg_parsers['config'].handler_func, None, 
                          "`config` parser should be None after a failed adding!") 
@@ -152,7 +152,7 @@ class TestHandler(ArgCatUnitTest):
         # add handler for a not existed sub parser
         def foo(one, two) -> str:
             return 'Listen to me~'
-        self.assertEqual(self._argcat.add_parser_handler(parser_name='foo', handler=foo), False, 
+        self.assertEqual(self._argcat.set_parser_handler(parser_name='foo', handler=foo), False, 
                          "Parser handler for a not existed `foo` parser should not be set!")
         
         

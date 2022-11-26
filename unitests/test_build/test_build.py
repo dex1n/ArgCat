@@ -147,7 +147,7 @@ class TestBuild(ArgCatUnitTest):
         # Set a handler with incorrect parameters
         def process_handler_with_incorrect_parameters(filename: str, type: int) -> str:
             return f"process_handler: {filename}, {type}"
-        self._argcat.add_parser_handler(parser_name='process', handler=process_handler_with_incorrect_parameters)
+        self._argcat.set_parser_handler(parser_name='process', handler=process_handler_with_incorrect_parameters)
         
         self.assertEqual(process_parser.handler_func, None, 
                          "`process` parser's handler should be None after receiving an incorrect handler!")
@@ -155,7 +155,7 @@ class TestBuild(ArgCatUnitTest):
         # Set a handler with correct paramters
         def process_handler_with_correct_parameters(debug: bool, filename: str, filesize: int) -> str:
             return f"process_handler: {debug}, {filename}, {filesize}"
-        self._argcat.add_parser_handler(parser_name='process', handler=process_handler_with_correct_parameters)
+        self._argcat.set_parser_handler(parser_name='process', handler=process_handler_with_correct_parameters)
         
         self.assertEqual(process_parser.handler_func, process_handler_with_correct_parameters, 
                          "`process` parser's handler should be valid after receiving a correct handler!")

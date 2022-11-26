@@ -736,7 +736,7 @@ class ArgCat:
             func = func_dict['func']
             func_name = func_dict['name']
             parser_name = func.argcat_argument_parser_name
-            done = self.add_parser_handler(parser_name=parser_name, handler=func, handler_name=func_name)
+            done = self.set_parser_handler(parser_name=parser_name, handler=func, handler_name=func_name)
             if done == False:
                 all_done = False
         return all_done
@@ -747,7 +747,7 @@ class ArgCat:
         """
         return self.add_handler_provider(sys.modules['__main__'])
     
-    def add_parser_handler(self, parser_name: str, handler: Callable, handler_name: Optional[str] = None) -> bool:
+    def set_parser_handler(self, parser_name: str, handler: Callable, handler_name: Optional[str] = None) -> bool:
         """ A flexible way to add handler for a specific parser. 
         Returns a bool value which is whether the handler is set successfully.
         """
