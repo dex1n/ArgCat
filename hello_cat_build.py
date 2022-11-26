@@ -45,6 +45,10 @@ def main():
     
     # This is to create an argcat with the same content as what we created by load(), but through build().
     with argcat.build() as builder:
+        # Set basic information
+        builder.set_prog_info(prog_name='Cool program name', description='Awesome description')
+        builder.set_sub_parser_info(title='The subparsers title', description='The subparsers description', 
+                                    help='The subparsers help')
         
         # Add an exclusive argument for the main parser.
         builder.main_parser().add_exclusive_argument('test', nargs='?', metavar='TEST', type=str, help='Just for test')
