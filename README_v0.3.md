@@ -1,10 +1,125 @@
 # ArgCat - A cute helper for argparse in Python 3
 
-**ArgCat** is a tiny tool designed to make it more joyful to use `argparse` module in Python 3.
+**ArgCat** is a tiny helper tool designed to make it more joyful to use `argparse` module in Python 3.
 
-It improves both the ''building" and "handling" parts of an argparse process, allowing developers to pay more attention to the business logic without worring about configuring parsers and arguments.
+As a bridge between developer and `argparse` module, it wraps `argparse` up and takes on all the "dirty works", improving both the ''building" and "handling" parts of an `argparse` process, allowing developers to focus on business logic without worring about creating and configuring  `argparse` parsers and arguments in command-line interfaces.
 
-## Building argument parsers
+## Long Story For Short
+
+### Installation
+
+```bash
+pip install argcat
+```
+
+Once installation is done, you should get a **v0.3** version in your python package library.
+
+### Usage
+
+Supposed we have an `argparse.ArgumentParser` created by `argparse` as below:
+
+```python
+import argparse
+
+argument_parser = argparse.ArgumentParser(prog='Cool program name', description='Awesome description')
+argument_parser.add_argument("-t", "--test", nargs='?', dest='test', metavar='TEST', type=str, help='Just for test')
+
+argument_subparsers = argument_parser.add_subparsers(dest = "sub_command", title='The subparsers title"', description="The subparsers description", help='The subparsers help')
+    
+init_parser = argument_subparsers.add_parser('init', help="Initialize something.")
+```
+
+
+
+1. Create `argparse.ArgumentParser` through two ways provided by ArgCat:
+
+   - YAML
+
+     - Define parsers and arguments in a YAML manifest file
+
+     ```yaml
+     meta: # Include all essential configurations used for creating a new ArgumentParser.
+       prog: "Cool program name"
+       description: "Awesome description"
+       subparser:
+         title: "The subparsers title"
+         description: "The subparsers description"
+         help: "The subparsers help"
+     parsers:	# Information of all parsers 
+       main:		# main parser
+         arguments:	# Add arguments of the main parser
+           # Declare a positional argument for the main parser.
+           -
+             ignored_by_subparser: True
+             nargs: "?"
+             dest: "test"
+             metavar: "TEST"
+             type: "str" 
+             help: "Just for test"
+       init: # This is a subparser without any argument.
+         help: "Initialize something."
+     ```
+
+     - Load the YAML file
+
+     ```python
+     from argcat import ArgCat
+     argcat = ArgCat()
+     argcat.load("simple.yml") # Load the manifest information from the YAML file.
+     ```
+
+   - Builder
+
+     ```python
+     argcat = ArgCat()
+     with argcat.build() as builder:
+     		# Set basic information
+         builder.set_prog_info(prog_name='Cool program name', 
+                               description='Awesome description')
+         
+         builder.set_sub_parser_info(title='The subparsers title', 
+                                     description='The subparsers description', 
+                                     help='The subparsers help')
+             
+         # Add an exclusive argument for the main parser.
+         builder.main_parser().add_exclusive_argument('test', nargs='?', metavar='TEST', 
+                                                      type=str, help='Just for test')
+             
+         # Add a sub parser without any arguments.
+         builder.add_sub_parser('init', help='Initialize something.')
+     ```
+
+
+
+
+
+
+
+Setting up handler functions to handle parsed argument inputs
+
+Handler functions are function
+
+ArgCat also provides two ways to set handler function.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Long Story
+
+### Building argument parsers
 
 A typical code snippet to build argument parsers for a command-line would be as below:
 
@@ -114,11 +229,12 @@ parsers:
 
 ### Build from codes:
 
-In addition, ArgCat also provides another way to build ArgumentParser from codes in v0.3. 
+In addition, ArgCat also provides a way to build ArgumentParser from codes in v0.3. 
+
+Below creates an argcat with the same content as what we created by `load()` the YAML file, but through `build()` .
 
 ```python
 argcat = ArgCat()
-# This is to create an argcat with the same content as what we created by load(), but through build().
 with argcat.build() as builder:
 		# Set basic information
     builder.set_prog_info(prog_name='Cool program name', 
@@ -155,6 +271,8 @@ with argcat.build() as builder:
 ```
 
 With an ArgCat builder, ArgumentParser can be created in a pretty clear and structured way. 
+
+
 
 ## Handling parsed arguments
 
@@ -302,7 +420,7 @@ def info_handler(cls, detail):
 
 Handler function's signature must match the dests of the parsers. 
 
-A dest should be the most important property for an argument of an ArgumentParser. Every argument has a dest to receive an input from command-line, and `argparse` parses the raw inputs into each dest, packing the dests of all the parsers into a tuple. ArgCat picks all the values needed for a parser according to its dests in the tuple, and then it packs these values with dests as the keys into a dict and passes it into the parser's handler function. 
+A dest should be the most important property for an argument of an ArgumentParser. Every argument has a dest to receive an input from command-line, and `argparse` parses the raw inputs into each dest, packing the dests of all the parsers into a tuple. ArgCat picks all the values needed for a parser according to its dests from that tuple, and then it packs these values with dests as the keys into a dict and passes it into the parser's handler function. 
 
 
 
