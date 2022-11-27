@@ -55,8 +55,34 @@ class DifferentKindsOfHandlerProvider:
 class TestHandler(ArgCatUnitTest):
     def setUp(self):
         self._argcat = ArgCat()
-        self._argcat.load(self.abs_path_of_test_file("handler.yml"))
-
+        with self._argcat.build() as builder:
+            # Set basic information
+            builder.set_prog_info(prog_name='Cool program name', description='Awesome description')
+            builder.set_sub_parser_info(title='The subparsers title', description='The subparsers description', 
+                                        help='The subparsers help')
+            
+            # Add an exclusive argument for the main parser.
+            builder.main_parser().add_exclusive_argument('test', nargs='?', metavar='TEST', type=str, 
+                                                         help='Just for test')
+            
+            # Add a sub parser without any arguments.
+            builder.add_sub_parser('init', help='Initialize something.')
+            
+            # Add a sub parser with one argument.
+            builder.add_sub_parser('info', help='Show information of something.')
+            builder.sub_parser('info').add_argument('detail', nargs='?', metavar='DETAIL', type='str', 
+                                                    help='The detail of the information')
+            
+            # Add a sub parser with one mutually exclusive group and two arguments
+            builder.add_sub_parser('config', help="Config something.")
+            builder.sub_parser('config').add_group('a_group', description="Group description", 
+                                                   is_mutually_exclusive=True)
+            builder.sub_parser('config').add_argument('-n', '--name', nargs='?', dest='name', metavar='NAME',
+                                                      type='str', help='The name.', group='a_group')
+            builder.sub_parser('config').add_argument('-u', '--username', nargs='?', dest='user_name', 
+                                                      metavar='USER_NAME', type='str', help='The user name.', 
+                                                      group='a_group')
+        
     def test_normal_handler_provider(self) -> None:
         self._argcat.add_handler_provider(NormalHandlerProvider())
         for parser_name in ['main', 'info', 'init', 'config']:
