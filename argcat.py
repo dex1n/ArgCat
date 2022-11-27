@@ -49,6 +49,7 @@ class _ManifestConstants:
 
 # Default manifest
 class _ARGUMENT_DEFAULTS_:
+    # NOTE : REMEMBER TO USE DEEP COPY WHEN SETTING THIS DICT AS A DEFAULT DICT
     META = {
         _ManifestConstants.PROG: "Cool program name",
         _ManifestConstants.DESCRIPTION: "Awesome description",
@@ -64,6 +65,7 @@ class _ARGUMENT_DEFAULTS_:
     DEST = "dest"
     HELP = ""
     METAVAR = "metavar"
+    # NOTE : REMEMBER TO USE DEEP COPY WHEN SETTING THIS DICT AS A DEFAULT DICT
     PARSERS = {
         # There is a `main` parser by default
         _ManifestConstants.MAIN: { _ManifestConstants.ARGUMENTS: [] }
@@ -195,17 +197,23 @@ class _ArgCatParser:
         return sub_parser_name, parsed_arguments_dict, parsed_arguments_dict_for_cur_parser
 
 class _ArgCatBuilder:
-    _manifest_data: Dict = {}
+    # NOTE: Try not to initialize a collection here, otherwise all instances of _ArgCatBuilder will have a member 
+    # variable _manifest_data points to the SAME dict. This is a very subtle issue can cause serious bugs.
+    _manifest_data: Dict # = {} 
     _on_build_done: Callable[[Dict], None]
     
     def __init__(self, on_build_done: Callable):
+        self._manifest_data = {}
         self._on_build_done = on_build_done
     
     # For with statement: enter is before `with` body.
     def __enter__(self):
         # Init data with default values.
-        self._manifest_data[_ManifestConstants.META] = _ARGUMENT_DEFAULTS_.META
-        self._manifest_data[_ManifestConstants.PARSERS] = _ARGUMENT_DEFAULTS_.PARSERS
+        # NOTE: DEEP COPY IS A MUST! Otherwise, all _manifest_data of _ArgCatBuilder instances will have and operate on
+        # the same META and PARSERS dict, which is a epic serious bug.
+        self._manifest_data[_ManifestConstants.META] = deepcopy(_ARGUMENT_DEFAULTS_.META)
+        self._manifest_data[_ManifestConstants.PARSERS] = deepcopy(_ARGUMENT_DEFAULTS_.PARSERS)
+        
         return self
     
     # For with statement: exit is after `with` body.
@@ -346,8 +354,8 @@ class _ArgCatBuilder:
             new_group = the_groups.get(group_name, {})
         
             if new_group:
-                _ArgCatPrinter.print(f"Failed to add the group `{group_name}`, as there has already been a group of \
-                                     the same name.", 
+                _ArgCatPrinter.print(f"Failed to add the group `{group_name}`, as there has already been a group of" +
+                                     " the same name.", 
                                     level=_ArgCatPrintLevel.WARNING)
                 return None
         
