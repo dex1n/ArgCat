@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 
-import os
 import argparse
 import inspect
-import yaml
 import sys
 import functools
 from copy import deepcopy
-from pathlib import Path
 from pydoc import locate
 from enum import Enum, unique
 from argparse import ArgumentParser, Namespace, _ArgumentGroup, _MutuallyExclusiveGroup, _SubParsersAction, Action
@@ -461,26 +458,6 @@ class ArgCat:
         self._arg_parsers: Dict = {}
         self._manifest_data: Optional[Dict] = {}
 
-    def _load_manifest(self, manifest_file_path: str) -> None:
-        _ArgCatPrinter.print(f"Loading manifest file: `{manifest_file_path}` ...")
-        resolved_file_path: str = str(Path(manifest_file_path).resolve())
-        if os.path.exists(resolved_file_path):
-            with open(resolved_file_path) as f:
-                try:
-                    self._manifest_data = yaml.safe_load(f)
-                except yaml.YAMLError as exc:
-                    self._manifest_data = None
-                    _ArgCatPrinter.print("Manifest file with path `{}` failed to load for exception: `{}`."
-                    .format(resolved_file_path, exc), level=_ArgCatPrintLevel.ERROR)
-                finally:
-                    if not self._manifest_data:
-                        _ArgCatPrinter \
-                        .print(f"Load empty manifest data from the given manifest file `{manifest_file_path}`.", 
-                        level=_ArgCatPrintLevel.WARNING)
-        else:
-            _ArgCatPrinter.print("Manifest file with path `{}` cannot be found.".format(manifest_file_path), 
-            level=_ArgCatPrintLevel.ERROR)
-
     def _create_parsers(self) -> None:
         _ArgCatPrinter.print("Creating parsers ...")
         
@@ -640,23 +617,6 @@ class ArgCat:
             _ArgCatPrinter.print("Parser `{}` does not have any handler.".format(parser.name), 
             level=_ArgCatPrintLevel.ERROR, indent=1)
         return None
-    
-    def load(self, manifest_file_path: str) -> None:
-        """Load manifest from file at path.
-
-        The manifest file must be a YAML file and have valid information for
-        ArgCat to load. 
-
-        Returns None
-        """
-        if self._is_building:
-            _ArgCatPrinter.print("ArgCat is building now so cannot load().", level=_ArgCatPrintLevel.WARNING)
-            return
-        
-        self._reset()
-        self._load_manifest(manifest_file_path)
-        self._create_parsers()
-        _ArgCatPrinter.print("Loading DONE. Use print_xx functions for more information.")
         
     def build(self) -> _ArgCatBuilder:
         """Build arguments by an ArgCatBuilder.
