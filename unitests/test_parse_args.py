@@ -33,20 +33,20 @@ class TestHandler(ArgCatUnitTest):
                                                          help='Just for test')
             
             # Add a sub parser without any arguments.
-            builder.add_sub_parser('init', help='Initialize something.')
+            builder.add_subparser('init', help='Initialize something.')
             
             # Add a sub parser with one argument.
-            builder.add_sub_parser('info', help='Show information of something.')
-            builder.sub_parser('info').add_argument('detail', nargs='?', metavar='DETAIL', type='str', 
+            builder.add_subparser('info', help='Show information of something.')
+            builder.subparser('info').add_argument('detail', nargs='?', metavar='DETAIL', type='str', 
                                                     help='The detail of the information')
             
             # Add a sub parser with one mutually exclusive group and two arguments
-            builder.add_sub_parser('config', help="Config something.")
-            builder.sub_parser('config').add_group('a_group', description="Group description", 
+            builder.add_subparser('config', help="Config something.")
+            builder.subparser('config').add_group('a_group', description="Group description", 
                                                    is_mutually_exclusive=True)
-            builder.sub_parser('config').add_argument('-n', '--name', nargs='?', dest='name', metavar='NAME',
+            builder.subparser('config').add_argument('-n', '--name', nargs='?', dest='name', metavar='NAME',
                                                       type='str', help='The name.', group='a_group')
-            builder.sub_parser('config').add_argument('-u', '--username', nargs='?', dest='user_name', 
+            builder.subparser('config').add_argument('-u', '--username', nargs='?', dest='user_name', 
                                                       metavar='USER_NAME', type='str', help='The user name.', 
                                                       group='a_group')
         
@@ -74,16 +74,16 @@ class TestHandler(ArgCatUnitTest):
             builder.main_parser().add_exclusive_argument('-v','--verbose', action='store_true', default=False)
             builder.main_parser().add_argument('-d', '--debug', action='store_true', default=False)
             # Add sub parser
-            builder.add_sub_parser('process')
+            builder.add_subparser('process')
             # Add group for the sub parser
-            builder.sub_parser('process').add_group('process_group', 
+            builder.subparser('process').add_group('process_group', 
                                                  description='This is a mutually exclusive group for `process`.', 
                                                  is_mutually_exclusive=True)
             # Add argument to sub parsers
-            builder.sub_parser('process').add_argument('-f', '--file', 
+            builder.subparser('process').add_argument('-f', '--file', 
                                  nargs='?', dest='filename', type='str', group='process_group', required=False,
                                  help='The target file name.')
-            builder.sub_parser('process').add_argument('-l', '--link', 
+            builder.subparser('process').add_argument('-l', '--link', 
                                  nargs='?', dest='link', type='str', group='process_group', required=False, 
                                  help='The target link.')
         

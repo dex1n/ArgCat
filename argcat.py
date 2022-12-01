@@ -21,7 +21,7 @@ class _ManifestConstants:
     TITLE = "title"
     HELP = "help"
     NARGS = "nargs"
-    SUB_PARSER_NAME = 'sub_parser_name'
+    SUBPARSER_NAME = 'subparser_name'
     SUBPARSER = 'subparser'
     PARSERS = 'parsers'
     DEST = 'dest'
@@ -162,12 +162,12 @@ class _ArgCatParser:
         parsed_args: Namespace = self._parser.parse_args(args=args, namespace=namespace)
         _ArgCatPrinter.print("Parsed args result: `{}`.".format(parsed_args))
         parsed_arguments_dict: Dict = dict(vars(parsed_args))
-        sub_parser_name: str = parsed_arguments_dict.get(_ManifestConstants.SUB_PARSER_NAME, None)
+        subparser_name: str = parsed_arguments_dict.get(_ManifestConstants.SUBPARSER_NAME, None)
         
-        # ManifestConstants.SUB_PARSER_NAME is not needed for the handlers.
+        # ManifestConstants.SUBPARSER_NAME is not needed for the handlers.
         # So, delete it from the argument dict if it exists.
-        if _ManifestConstants.SUB_PARSER_NAME in parsed_arguments_dict:
-            del parsed_arguments_dict[_ManifestConstants.SUB_PARSER_NAME]
+        if _ManifestConstants.SUBPARSER_NAME in parsed_arguments_dict:
+            del parsed_arguments_dict[_ManifestConstants.SUBPARSER_NAME]
         
         parsed_arguments_dict_for_cur_parser = {}
         # Firstly, pick all arguments parsed of the current parser.
@@ -175,13 +175,13 @@ class _ArgCatParser:
             if k in self._dests:
                 parsed_arguments_dict_for_cur_parser[k] = v
         
-        # If the sub parser is needed, remove all arguments from the 
+        # If the subparser is needed, remove all arguments from the 
         # namspace belong to the main parser(parent parser) marked IGNORED_BY_SUBPARSER True. 
         # By default, all main parser's arguments will
         # stored in the args namespace even there is no the main arguments 
         # input. So, this step is to make sure the arguments input
         # into the handler correctly.
-        if sub_parser_name:
+        if subparser_name:
             for argument in self._arguments:
                 # 'dest' value is the key of the argument in the parsed_arguments_dict.
                 dest: str = argument.dest
@@ -191,10 +191,10 @@ class _ArgCatParser:
                 if dest is not None and should_be_ignored:
                     del parsed_arguments_dict[dest]
         else:
-            parsed_arguments_dict = None    # If sub_parser_name is None, clear this make sure it cannot be used.
+            parsed_arguments_dict = None    # If subparser_name is None, clear this make sure it cannot be used.
         
-        # parsed_arguments_dict now is a dict contains arguments only for the sub parser.
-        return sub_parser_name, parsed_arguments_dict, parsed_arguments_dict_for_cur_parser
+        # parsed_arguments_dict now is a dict contains arguments only for the subparser.
+        return subparser_name, parsed_arguments_dict, parsed_arguments_dict_for_cur_parser
 
 class _ArgCatBuilder:
     # NOTE: Try not to initialize a collection here, otherwise all instances of _ArgCatBuilder will have a member 
@@ -223,7 +223,7 @@ class _ArgCatBuilder:
     def _select_parser_by_name(self, parser_name: str) -> Dict:
         parsers: Dict = self._manifest_data[_ManifestConstants.PARSERS]
         # Select the parser by name.
-        # It may be a 'main' parser or any other sub parser.
+        # It may be a 'main' parser or any other subparser.
         the_parser = parsers.setdefault(parser_name, None)
         return the_parser
     
@@ -266,13 +266,13 @@ class _ArgCatBuilder:
             subparsers_data[k] = v
         return deepcopy(kwargs)
     
-    def add_sub_parser(self, parser_name: str, **kwargs: str) -> Optional[Dict]:
-        """Add a new sub parser
+    def add_subparser(self, parser_name: str, **kwargs: str) -> Optional[Dict]:
+        """Add a new subparser
         
-        `parser_name` is the name of the new sub parser to add. If there has already been a parser with the same name
+        `parser_name` is the name of the new subparser to add. If there has already been a parser with the same name
         added, this method will fail and None will be returned.
         
-        `**kwargs` is totally the same as the one input into argparse's add_parser(). ArgCat does not modify it but just
+        `**kwargs` is exactly the same as the one input into argparse's add_parser(). ArgCat does not modify it but just
         stores it and passes it into argparse's add_parser() in _create_parsers().
         
         Returns a dict contains the parser's information from `*args, **kwargs` and ArgCat, or 
@@ -347,15 +347,15 @@ class _ArgCatBuilder:
             """Add a new exclusive argument
             
             An exclusive argument for `main` parser is one argument whose `ignored_by_subparser` property is True,
-            which means being ignored by any other sub parsers.
+            which means being ignored by any other subparsers.
 
             `ignored_by_subparser` is very important for arguments of `main` parsers.
             If `ignored_by_subparser` is True, any arguments created with this will only be passed to the handler for 
-            `main` parser. Otherwise, the arguments will be also passed to all the sub parser's handler. The different 
+            `main` parser. Otherwise, the arguments will be also passed to all the subparser's handler. The different 
             behaviors can decide the signature of the handlers directly. 
-            For example, supposed `main` parser has an argument ['verbose'] and a sub parser `load` has an argument 
-            ['-f', '--file']. If ['verbose'] is `ignored_by_subparser`, the sub parser's handler should be `func(file)`,
-            which ignores ['verbose']. Instead, if ['verbose'] is not `ignored_by_subparser`, the sub parser's handler 
+            For example, supposed `main` parser has an argument ['verbose'] and a subparser `load` has an argument 
+            ['-f', '--file']. If ['verbose'] is `ignored_by_subparser`, the subparser's handler should be `func(file)`,
+            which ignores ['verbose']. Instead, if ['verbose'] is not `ignored_by_subparser`, the subparser's handler 
             should be `func(verbose, file)`. 
         
             `*args, **kwargs` is exactly the same as those in `argparse.add_argument()`. ArgCat just passes these as
@@ -374,8 +374,8 @@ class _ArgCatBuilder:
         # Theoretically, the_parser should never be None forever. 
         return self.__ArgCatMainParserArgumentBuilder(the_parser)
     
-    def sub_parser(self, parser_name: str) -> Optional[__ArgCatParserArgumentBuilder]:
-        """Start to create new arguments for a sub parser.
+    def subparser(self, parser_name: str) -> Optional[__ArgCatParserArgumentBuilder]:
+        """Start to create new arguments for a subparser.
         
         `parser_name` should be a valid name string other than `main`, which has already be used by the main parser by
         default. If the parser of the name does not exist, an error would be reported.
@@ -458,11 +458,11 @@ class ArgCat:
         
         parsers_dict: Dict = self._manifest_data[_ManifestConstants.PARSERS]
         
-        # Make meta dict for creating sub parsers by add_subparsers() 
+        # Make meta dict for creating subparsers by add_subparsers() 
         # In easy mode, ManifestConstants.SUBPARSER value is None and to make sure add_subparsers() work in this case,
-        # we use an empty dict as sub_parser_meta_dict.
-        sub_parser_meta_dict: Dict = meta_dict.get(_ManifestConstants.SUBPARSER, {})
-        sub_parser_meta_dict[_ManifestConstants.DEST] = _ManifestConstants.SUB_PARSER_NAME # reserved 
+        # we use an empty dict as subparser_meta_dict.
+        subparser_meta_dict: Dict = meta_dict.get(_ManifestConstants.SUBPARSER, {})
+        subparser_meta_dict[_ManifestConstants.DEST] = _ManifestConstants.SUBPARSER_NAME # reserved 
         
         argument_subparsers: Optional[_SubParsersAction] = None
 
@@ -490,7 +490,7 @@ class ArgCat:
                 # More details can be found from:
                 # https://stackoverflow.com/questions/8668519/python-argparse-positional-arguments-and-sub-commands?rq=1
                 if argument_subparsers is None:
-                    argument_subparsers: _SubParsersAction = main_parser.add_subparsers(**sub_parser_meta_dict)
+                    argument_subparsers: _SubParsersAction = main_parser.add_subparsers(**subparser_meta_dict)
                 new_parser = argument_subparsers.add_parser(parser_name, **parser_meta_dict)
                 
             # Add argument groups
@@ -632,24 +632,24 @@ class ArgCat:
         """
         _ArgCatPrinter.print("Parsing args ...")
         # Call the main parser's parse_args() to parse the arguments input.
-        sub_parser_name, sub_parser_parsed_arguments_dict, main_parser_parsed_arguments_dict = \
+        subparser_name, subparser_parsed_arguments_dict, main_parser_parsed_arguments_dict = \
         self._arg_parsers[_ManifestConstants.MAIN].parse_args(args=args, namespace=namespace)
         
         ret_result = {}
         
         # The main parser's handler should be called for two cases: 
-        # 1. no sub parser called or 
-        # 2. sub parser called but main parser has arguments.
-        if sub_parser_name is None or main_parser_parsed_arguments_dict:
+        # 1. no subparser called or 
+        # 2. subparser called but main parser has arguments.
+        if subparser_name is None or main_parser_parsed_arguments_dict:
             ret_result['main'] = self._call_parser_handler(parser=self._arg_parsers[_ManifestConstants.MAIN], 
                                                            parameters=main_parser_parsed_arguments_dict)
         
-        # Only need to check sub_parser_name because sub_parser_parsed_arguments_dict can be None when a sub parser 
+        # Only need to check subparser_name because subparser_parsed_arguments_dict can be None when a subparser 
         # is called without any arguments.
-        if sub_parser_name:
-            sub_parser = self._arg_parsers[sub_parser_name]
-            ret_result[sub_parser_name] = self._call_parser_handler(parser=sub_parser, 
-                                                                    parameters=sub_parser_parsed_arguments_dict)
+        if subparser_name:
+            subparser = self._arg_parsers[subparser_name]
+            ret_result[subparser_name] = self._call_parser_handler(parser=subparser, 
+                                                                    parameters=subparser_parsed_arguments_dict)
             
         return ret_result
     

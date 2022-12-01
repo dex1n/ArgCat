@@ -31,28 +31,28 @@ class TestBuild(ArgCatUnitTest):
             #builder.add_argument('main', '-v', '--verbose', action='store_true')
             
             # Attempt to add an existed parser.
-            ret = builder.add_sub_parser('main')
+            ret = builder.add_subparser('main')
             self.assertIsNone(ret, "Adding an existed parser should not work!")
             
             # Add normal sub parser `process`.
-            builder.add_sub_parser('process', description='This is a sub parser for processing file or link.')
+            builder.add_subparser('process', description='This is a sub parser for processing file or link.')
             
             # Add group for the sub parser
-            builder.sub_parser('process').add_group(group_name='process_group_1', 
+            builder.subparser('process').add_group(group_name='process_group_1', 
                                                     description='This is the first group for process, \
                                                     which is not mutually exclusive', 
                                                     is_mutually_exclusive=False)
             
-            builder.sub_parser('process').add_group(group_name='process_group_2', 
+            builder.subparser('process').add_group(group_name='process_group_2', 
                                                     description='This is the second group for process, \
                                                     which IS mutually exclusive', 
                                                     is_mutually_exclusive=True)
             
             # Add argument to sub parsers
-            builder.sub_parser('process').add_argument('-f', '--file', 
+            builder.subparser('process').add_argument('-f', '--file', 
                                  nargs='?', dest='filename', type='str', group='process_group_1', required=True,
                                  help='The target file name.')
-            builder.sub_parser('process').add_argument('-s', '--size', nargs='1', dest='filesize', type='int', 
+            builder.subparser('process').add_argument('-s', '--size', nargs='1', dest='filesize', type='int', 
                                  group='process_group_1', required=False, default='1024')
             
 

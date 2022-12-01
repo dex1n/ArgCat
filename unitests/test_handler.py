@@ -66,20 +66,20 @@ class TestHandler(ArgCatUnitTest):
                                                          help='Just for test')
             
             # Add a sub parser without any arguments.
-            builder.add_sub_parser('init', help='Initialize something.')
+            builder.add_subparser('init', help='Initialize something.')
             
             # Add a sub parser with one argument.
-            builder.add_sub_parser('info', help='Show information of something.')
-            builder.sub_parser('info').add_argument('detail', nargs='?', metavar='DETAIL', type='str', 
+            builder.add_subparser('info', help='Show information of something.')
+            builder.subparser('info').add_argument('detail', nargs='?', metavar='DETAIL', type='str', 
                                                     help='The detail of the information')
             
             # Add a sub parser with one mutually exclusive group and two arguments
-            builder.add_sub_parser('config', help="Config something.")
-            builder.sub_parser('config').add_group('a_group', description="Group description", 
+            builder.add_subparser('config', help="Config something.")
+            builder.subparser('config').add_group('a_group', description="Group description", 
                                                    is_mutually_exclusive=True)
-            builder.sub_parser('config').add_argument('-n', '--name', nargs='?', dest='name', metavar='NAME',
+            builder.subparser('config').add_argument('-n', '--name', nargs='?', dest='name', metavar='NAME',
                                                       type='str', help='The name.', group='a_group')
-            builder.sub_parser('config').add_argument('-u', '--username', nargs='?', dest='user_name', 
+            builder.subparser('config').add_argument('-u', '--username', nargs='?', dest='user_name', 
                                                       metavar='USER_NAME', type='str', help='The user name.', 
                                                       group='a_group')
         
