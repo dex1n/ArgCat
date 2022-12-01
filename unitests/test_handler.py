@@ -1,5 +1,5 @@
 from argcat import ArgCat
-from ..argcat_unit_test import ArgCatUnitTest
+from unitests.argcat_unittest import ArgCatUnitTest
 
 class NormalHandlerProvider:
     @ArgCat.handler(parser_name='main')

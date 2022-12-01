@@ -1,5 +1,5 @@
 from argcat import ArgCat
-from ..argcat_unit_test import ArgCatUnitTest
+from unitests.argcat_unittest import ArgCatUnitTest
 
 class DifferentKindsOfHandlerProvider:
     @classmethod
@@ -92,7 +92,7 @@ class TestHandler(ArgCatUnitTest):
         self.assertEqual(parsed, 
                          {'main': 
                              {'debug': False, 
-                              'foo': 'unitests/test_parse_args/test_parse_args.py', 
+                              'foo': 'unitests/test_parse_args.py', 
                               'verbose': True} 
                              }, 
                          "Failed to parse no args input with the default main handler.")

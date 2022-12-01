@@ -1,5 +1,5 @@
 from argcat import ArgCat
-from ..argcat_unit_test import ArgCatUnitTest
+from unitests.argcat_unittest import ArgCatUnitTest
 from argparse import _StoreTrueAction, _ArgumentGroup, _MutuallyExclusiveGroup
 
 class TestBuild(ArgCatUnitTest):
