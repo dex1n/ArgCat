@@ -233,65 +233,38 @@ class _ArgCatBuilder:
         parsers[parser_name] = new_parser
         return new_parser
     
-    def set_prog_info(self, prog_name: Optional[str] = None, description: Optional[str] = None) -> Dict:
+    def set_prog_info(self, **kwargs) -> Dict:
         """Set basic information of program.
         
-        Quite straightfoward method to use. 
+        `kwargs` will be used to initialize the main parser of this program by `argparse.ArgumentParser()` without any
+        modification from ArgCat. So, `kwargs` here is exactly the same as the one for `argparse.ArgumentParser()`, and
+        more details about all the acceptable keys and values in `kwargs` can be found in `argparse.ArgumentParser()`.
         
-        Note that if there is one valid prog_name or description exists and user inputs None for one or both of them, 
-        the previous valid value would not be replaced with the None(s). So, actually, these properties can only be 
-        blank but not be None through this method.
+        This function can be omitted, as there are two configurations: {_ManifestConstants.PROG: "Cool program name",
+        _ManifestConstants.DESCRIPTION: "Awesome description"} set in self._manifest_data[_ManifestConstants.META] by 
+        default.
         
-        Returns a dict contains the prog name and description after this set.
+        Returns a dict contains kwargs.
         """
-        if prog_name is not None:
-            self._manifest_data[_ManifestConstants.META][_ManifestConstants.PROG] = prog_name
-        if description is not None:
-            self._manifest_data[_ManifestConstants.META][_ManifestConstants.DESCRIPTION] = description
-            
-        return {_ManifestConstants.PROG: 
-                    self._manifest_data[_ManifestConstants.META][_ManifestConstants.PROG], 
-                _ManifestConstants.DESCRIPTION: 
-                    self._manifest_data[_ManifestConstants.META][_ManifestConstants.DESCRIPTION]
-                }
+        for k,v in kwargs.items():
+            self._manifest_data[_ManifestConstants.META][k] = v
+        return deepcopy(kwargs)
     
-    def set_sub_parser_info(self, title: Optional[str] = None, description: Optional[str] = None, 
-                            help: Optional[str] = None) -> Dict:
-        """Create and set sub parser info.
+    def set_subparsers_info(self, **kwargs) -> Dict:
+        """Set basic information of subparsers.
         
-        If user call this, we are assuming user wants to create and set sub parser information, even if user input None
-        values.
+        `kwargs` will be used to initialize the subparsers of the main parser by `ArgumentParser.add_subparsers()` 
+        without any modification from ArgCat. So, `kwargs` here is totally the same as the one for 
+        `ArgumentParser.add_subparsers()`.
         
-        Note that if there is one valid title or description or help exists and user inputs None for one or all of them, 
-        the previous valid value(s) would not be replaced with the None(s). So, actually, these properties can only be 
-        blank but not be None through this method.
+        This function can be omitted. If so, a empty kwargs will be used for the initialization.
         
-        Returns a dict contains the set sub parser information.
+        Returns a dict contains kwargs.
         """
-        sub_parser_info = self._manifest_data[_ManifestConstants.META].get(_ManifestConstants.SUBPARSER, {})
-        if title is not None:
-            sub_parser_info[_ManifestConstants.TITLE] = title
-        if description is not None:
-            sub_parser_info[_ManifestConstants.DESCRIPTION] = description
-        if help is not None:
-            sub_parser_info[_ManifestConstants.HELP] = help
-        self._manifest_data[_ManifestConstants.META][_ManifestConstants.SUBPARSER] = sub_parser_info
-        
-        return deepcopy(sub_parser_info)
-    
-    def remove_sub_parser_info(self) -> bool:
-        """Remove sub parser information.
-        
-        Since sub parser information is not necessary for a program, we set the info None by default and allow user to 
-        remove all of this.
-        
-        Returns whether the removal operation is done.
-        """
-        sub_parser_info = self._manifest_data[_ManifestConstants.META].get(_ManifestConstants.SUBPARSER, None)
-        if sub_parser_info is not None:
-            del self._manifest_data[_ManifestConstants.META][_ManifestConstants.SUBPARSER]
-            return True
-        return False
+        subparsers_data = self._manifest_data[_ManifestConstants.META].get(_ManifestConstants.SUBPARSER, {})
+        for k,v in kwargs.items():
+            subparsers_data[k] = v
+        return deepcopy(kwargs)
     
     def add_sub_parser(self, parser_name: str, **kwargs: str) -> Optional[Dict]:
         """Add a new sub parser
