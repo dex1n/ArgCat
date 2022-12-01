@@ -20,8 +20,36 @@ class TestHandler(ArgCatUnitTest):
     def setUp(self):
         self._argcat = ArgCat()
 
-    def test_parse_args_from_load(self) -> None:
-        self._argcat.load(self.abs_path_of_test_file("parse_args.yml"))
+    def test_parse_args_with_handler_provider(self) -> None:
+        with self._argcat.build() as builder:
+            
+            # Set basic information
+            builder.set_prog_info(prog='Cool program name', description='Awesome description')
+            builder.set_subparsers_info(title='The subparsers title', description='The subparsers description', 
+                                        help='The subparsers help')
+            
+            # Add an exclusive argument for the main parser.
+            builder.main_parser().add_exclusive_argument('test', nargs='?', metavar='TEST', type=str, 
+                                                         help='Just for test')
+            
+            # Add a sub parser without any arguments.
+            builder.add_sub_parser('init', help='Initialize something.')
+            
+            # Add a sub parser with one argument.
+            builder.add_sub_parser('info', help='Show information of something.')
+            builder.sub_parser('info').add_argument('detail', nargs='?', metavar='DETAIL', type='str', 
+                                                    help='The detail of the information')
+            
+            # Add a sub parser with one mutually exclusive group and two arguments
+            builder.add_sub_parser('config', help="Config something.")
+            builder.sub_parser('config').add_group('a_group', description="Group description", 
+                                                   is_mutually_exclusive=True)
+            builder.sub_parser('config').add_argument('-n', '--name', nargs='?', dest='name', metavar='NAME',
+                                                      type='str', help='The name.', group='a_group')
+            builder.sub_parser('config').add_argument('-u', '--username', nargs='?', dest='user_name', 
+                                                      metavar='USER_NAME', type='str', help='The user name.', 
+                                                      group='a_group')
+        
         self._argcat.add_handler_provider(DifferentKindsOfHandlerProvider())
         # 'test' is the positional argument for 'main'.
         init_result = self._argcat.parse_args(['test', 'init'])
@@ -40,13 +68,14 @@ class TestHandler(ArgCatUnitTest):
         self.assertEqual(config_result, {'main': {'test': 'test'}, 'config': 'config name = None, user_name = cool_user_name'}, 
                          f"Incorrect result for 'config' parser")
 
-    def test_parse_args_from_build(self) -> None:
+    def test_parse_args_with_set_handler(self) -> None:
         with self._argcat.build() as builder:
             builder.main_parser().add_exclusive_argument('foo')
             builder.main_parser().add_exclusive_argument('-v','--verbose', action='store_true', default=False)
             builder.main_parser().add_argument('-d', '--debug', action='store_true', default=False)
-            # Add group for the sub parser
+            # Add sub parser
             builder.add_sub_parser('process')
+            # Add group for the sub parser
             builder.sub_parser('process').add_group('process_group', 
                                                  description='This is a mutually exclusive group for `process`.', 
                                                  is_mutually_exclusive=True)
