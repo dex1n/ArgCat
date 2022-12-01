@@ -14,9 +14,9 @@ class TestBuild(ArgCatUnitTest):
             #2. add_argument(option_string, option_string, ..., name=value, ...)
 
             # Set program and subparser information.            
-            builder.set_prog_info(prog_name='Program for normal build test.', 
+            builder.set_prog_info(prog='Program for normal build test.', 
                                   description="This is the description.")
-            builder.set_sub_parser_info(title='Sub parser title', 
+            builder.set_subparsers_info(title='Sub parser title', 
                                         description='Sub parser decription', 
                                         help='Sub parser help')
             

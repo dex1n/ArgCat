@@ -57,8 +57,8 @@ class TestHandler(ArgCatUnitTest):
         self._argcat = ArgCat()
         with self._argcat.build() as builder:
             # Set basic information
-            builder.set_prog_info(prog_name='Cool program name', description='Awesome description')
-            builder.set_sub_parser_info(title='The subparsers title', description='The subparsers description', 
+            builder.set_prog_info(prog='Cool program name', description='Awesome description')
+            builder.set_subparsers_info(title='The subparsers title', description='The subparsers description', 
                                         help='The subparsers help')
             
             # Add an exclusive argument for the main parser.
