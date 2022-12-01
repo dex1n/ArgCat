@@ -396,8 +396,7 @@ class ArgCat:
         """ArgCat handler decorator.
         
         This is to make regular function/method become handler for ArgCat. And
-        parser_name must be exactly the same as the parser's name defined in 
-        the YAML file.
+        parser_name must be exactly the same as the parser's name. (Blah blah)
         """
         def decorator_handler(func):
             # Add the attribute to the decorated func.
@@ -484,11 +483,6 @@ class ArgCat:
                 new_parser = main_parser
             else:
                 # Create the subparsers when need.
-                # This is to make sure: if main arguments are declared in the yaml before the subparsers' arguments,
-                # they will be added and parsed before the subparsers' arguments. This is very important and useful
-                # when there is any positional argument before the subparsers' ones. 
-                # More details can be found from:
-                # https://stackoverflow.com/questions/8668519/python-argparse-positional-arguments-and-sub-commands?rq=1
                 if argument_subparsers is None:
                     argument_subparsers: _SubParsersAction = main_parser.add_subparsers(**subparser_meta_dict)
                 new_parser = argument_subparsers.add_parser(parser_name, **parser_meta_dict)
