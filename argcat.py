@@ -51,8 +51,8 @@ class _ManifestConstants:
 class _ARGUMENT_DEFAULTS_:
     # NOTE : REMEMBER TO USE DEEP COPY WHEN SETTING THIS DICT AS A DEFAULT DICT
     META = {
-        _ManifestConstants.PROG: "Cool program name",
-        _ManifestConstants.DESCRIPTION: "Awesome description",
+        _ManifestConstants.PROG: "ArgCat GO~",
+        _ManifestConstants.DESCRIPTION: "It's sooo freeesh~",
         # In build mode, we don't use these by default to make the help texts clean.
         # ManifestConstants.SUBPARSER: {
         #     ManifestConstants.TITLE: "The subparsers title",
@@ -142,7 +142,7 @@ class _ArgCatParser:
         return self._handler_func
     
     @handler_func.setter
-    def handler_func(self, value) -> None:         
+    def handler_func(self, value: Optional[Callable]) -> None:         
         self._handler_func = value
 
     @property
@@ -236,13 +236,11 @@ class _ArgCatBuilder:
     def set_prog_info(self, **kwargs) -> Dict:
         """Set basic information of program.
         
-        `kwargs` will be used to initialize the main parser of this program by `argparse.ArgumentParser()` without any
-        modification from ArgCat. So, `kwargs` here is exactly the same as the one for `argparse.ArgumentParser()`, and
-        more details about all the acceptable keys and values in `kwargs` can be found in `argparse.ArgumentParser()`.
+        `**kwargs` will be used to initialize the main parser of this program by `argparse.ArgumentParser()` without any
+        modification from ArgCat. So, it is exactly the same as the one for `argparse.ArgumentParser()`. More details 
+        about all the acceptable keys and values in `**kwargs` can be found in `argparse.ArgumentParser()`.
         
-        This function can be omitted, as there are two configurations: {_ManifestConstants.PROG: "Cool program name",
-        _ManifestConstants.DESCRIPTION: "Awesome description"} set in self._manifest_data[_ManifestConstants.META] by 
-        default.
+        This function can be omitted. If so, the "prog" and "description" will be set to default values.
         
         Returns a dict contains kwargs.
         """
@@ -253,11 +251,11 @@ class _ArgCatBuilder:
     def set_subparsers_info(self, **kwargs) -> Dict:
         """Set basic information of subparsers.
         
-        `kwargs` will be used to initialize the subparsers of the main parser by `ArgumentParser.add_subparsers()` 
-        without any modification from ArgCat. So, `kwargs` here is totally the same as the one for 
-        `ArgumentParser.add_subparsers()`.
+        `**kwargs` will be used to initialize the subparsers of the main parser by 
+        `argparse.ArgumentParser.add_subparsers()` without any modification from ArgCat. So, `**kwargs` here is exactly 
+        the same as the one for `argparse.ArgumentParser.add_subparsers()`.
         
-        This function can be omitted. If so, a empty kwargs will be used for the initialization.
+        This function can be omitted. If so, an empty `**kwargs` will be used for the initialization.
         
         Returns a dict contains kwargs.
         """
@@ -272,15 +270,15 @@ class _ArgCatBuilder:
         `parser_name` is the name of the new subparser to add. If there has already been a parser with the same name
         added, this method will fail and None will be returned.
         
-        `**kwargs` is exactly the same as the one input into argparse's add_parser(). ArgCat does not modify it but just
-        stores it and passes it into argparse's add_parser() in _create_parsers().
+        `**kwargs` is exactly the same as the one passed into `argparse.ArgumentParser.add_parser()`. ArgCat does not 
+        modify any elements of it.
         
         Returns a dict contains the parser's information from `*args, **kwargs` and ArgCat, or 
         None if a parser with the same name has already existed.
         """
         the_parser = self._select_parser_by_name(parser_name)
         if the_parser:
-            _ArgCatPrinter.print(f"`{parser_name}` parser has already existed and cannot be added again.", 
+            _ArgCatPrinter.print(f"`{parser_name}` parser has already existed so cannot be added again.", 
                                  level=_ArgCatPrintLevel.ERROR)
             return None
         
@@ -310,9 +308,9 @@ class _ArgCatBuilder:
         def add_argument(self, *args: str, **kwargs: str) -> Dict:
             """Add a new argument
         
-            `*args, **kwargs` is exactly the same as those in `argparse.add_argument()`. ArgCat just passes these as
-            they are into `argparse.add_argument()` without doing any further operation. So, if there is any 
-            complain/error due to your input, don't blame the cat. LOL. (DOGE):P
+            `*args, **kwargs` is exactly the same as those for `argparse.ArgumentParser.add_argument()`. ArgCat just 
+            uses these as they are without any further modification. So, if there is any complain/error due to your 
+            input, don't blame the cat. LOL. (DOGE):P
         
             Returns a dict contains the argument information from `*args, **kwargs` and ArgCat.
             """
@@ -351,12 +349,12 @@ class _ArgCatBuilder:
 
             `ignored_by_subparser` is very important for arguments of `main` parsers.
             If `ignored_by_subparser` is True, any arguments created with this will only be passed to the handler for 
-            `main` parser. Otherwise, the arguments will be also passed to all the subparser's handler. The different 
-            behaviors can decide the signature of the handlers directly. 
+            `main` parser. Otherwise, the arguments will be also passed to all the subparser's handlers. This setting
+            can decide the signature of the handlers directly. 
             For example, supposed `main` parser has an argument ['verbose'] and a subparser `load` has an argument 
             ['-f', '--file']. If ['verbose'] is `ignored_by_subparser`, the subparser's handler should be `func(file)`,
             which ignores ['verbose']. Instead, if ['verbose'] is not `ignored_by_subparser`, the subparser's handler 
-            should be `func(verbose, file)`. 
+            should be `func(verbose, file)`, which contains the main parser's argument ['verbose'].
         
             `*args, **kwargs` is exactly the same as those in `argparse.add_argument()`. ArgCat just passes these as
             they are into `argparse.add_argument()` without doing any further operation. So, if there is any 
@@ -617,7 +615,7 @@ class ArgCat:
     def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Dict:
         """Start to parse args.
 
-        This method is pretty much the same as the original parse_args of ArgumentParser, which means
+        This method is pretty much the same as the original `parse_args()` of ArgumentParser, which means
         you can use it the same way as you use ArgumentParser's before.
 
         Returns result from handler. This is the only difference from the ArgumentParser's parse_args.
