@@ -1,321 +1,216 @@
-# ArgCat - A cute helper for ArgumentParser in Python 3
+# ArgCat - A cute helper for argparse in Python 3
 
-## Background
+**ArgCat** is a tiny tool designed to make it more joyful to use `argparse` module in Python 3.
 
-Have you already been tired of writing argument parsing codes for your python command line program? **YES, I AM! (Why I'm yelling as hell?!)**
-
-(This is the reason:) To me, adding/updating the argument parsers and setting varities of arguments in python are absolute chores and the most boring part of writing a python program.
-
-You know, __Life is short, I use Python__ ... to write the creative and fun stuffs. But NOT these:
-
-```python
-argument_parser = argparse.ArgumentParser(prog='Cool program name', description='Awesome description')
-argument_parser.add_argument("-t", "--test", nargs='?', dest='test', metavar='TEST', type=str, help='Just for test')
-
-argument_subparsers = argument_parser.add_subparsers(dest = "sub_command", title='The subparsers title"', 
-    description="The subparsers description", help='The subparsers help')
-    
-init_parser = argument_subparsers.add_parser('init', help="Initialize something.")
-
-info_parser = argument_subparsers.add_parser('info', help="Show information of something.")
-info_parser.add_argument("-d", "--detail", nargs='?', dest='detail', metavar='DETAIL', type=str, 
-    help='The detail of the information')
-
-config_parser = argument_subparsers.add_parser('config', help="Config something.")
-config_arg_group = config_parser.add_mutually_exclusive_group()
-config_arg_group.add_argument("-n", "--name", nargs='?', dest='name', metavar='NAME', type=str, help='The name.')
-config_arg_group.add_argument("-u", "--username", nargs='?', dest='user_name', metavar='USER_NAME', type=str, help='The user name.')
-
-args = argument_parser.parse_args()
-sub_command = args.sub_command
-if sub_command == "init":
-    init_handler()
-elif sub_command == "info":
-    info_handler()
-elif sub_command == "config":
-    foo = Foo()
-    foo.config_handler(args.name, args.user_name)
-elif sub_command is None:
-    main_handler(args.test)
-```
-
-These codes for me really destroy every happy and exciting moment and kill the most valuable thing: **TIME!**
-
-So, in the end, it does really matter! (BTW, I love Linkin Park)
-
-So, (another so, you know, we love saying so) eventually I create __ArgCat__ as the way to get out of the boring hell.
-
-## About
-
-Generally speaking, __ArgCat__ allows you to define and config your ArgumentParsers in a YAML format file then create the ArgumentParser instances according to the YAML in the runtime.
+As a bridge between developer and `argparse` module, it wraps `argparse`  and tries to take on all the "dirty works" for you, improving both the ''building" and "handling" parts of an `argparse` process, allowing you to focus more on business logic without worring about creating and configuring parsers and arguments of `argparse` in command-line interfaces.
 
 ## Installation
-
-Why not install it before diving into details :)
 
 ```bash
 pip install argcat
 ```
 
-## Usage
+Once installation done, you should get a **v0.4.x** version in your python package library , as the latest stable version is **v0.4.x**.
 
-### YAML
+## Features
 
-An example YAML file name `simple.yml` for __ArgCat__:
+### Build parsers and arguments of `argparse` in a more straightforward and clearer way
 
-```yaml
-meta: # Include all essential configurations used for creating a new ArgumentParser.
-  prog: "Cool program name"
-  description: "Awesome description"
-  subparser:
-    title: "The subparsers title"
-    description: "The subparsers description"
-    help: "The subparsers help"
-parsers:  # All parsers including the "main" parser below, which is the very first parser created by argparse.ArgumentParser()
-  main:
-    arguments:
-      # Declare a positional argument for the main parser.
-      -
-        # Mainly used for main arguments. 
-        # If this is set to True, the argument will be filtered out before being passed into subparser's handler. 
-        # Default value is False.
-        # In this case, the argument test will not be passed into any subparser's handler,
-        # even this test argument has a valid value instead of None.
-        ignored_by_subparser: True
-        nargs: "?"
-        dest: "test"
-        metavar: "TEST"
-        type: "str" # The default type for this is "str". Use the type's lexical name here and ArgCat will try to convert it to the type object.
-        help: "Just for test"
-  init: # This is a subparser without any argument but only a help tip.
-    help: "Initialize something."
-  info: # This is a subparser has only one positional argument.
-    help: "Show information of something."
-    arguments:
-      -
-        nargs: "?"
-        dest: "detail"
-        metavar: "DETAIL"
-        type: "str"
-        help: "The detail of the information"
-  config: # This is a sub parser has a few named arguments and one group.
-    help: "Config something."
-    argument_groups:  # All groups this subparser has.
-      a_group:  # Group name can be any valid string. And any argument in the group should declare this in its argument config.
-        name: "Actual group name"
-        description: "Group description"
-        is_mutually_exclusive: true # Whether the group is mutually exclusive. This is an useful property for some cases.
-    arguments:
-      -
-        name_or_flags: ["-n", "--name"]
-        nargs: "?"
-        dest: "name"
-        metavar: "NAME"
-        type: "str"
-        help: "The name."
-        group: "a_group"  # Declare this argument is in the group whose name is "a_group" declared above.
-      - 
-        name_or_flags: ["-u", "--username"]
-        nargs: "?"
-        dest: "user_name"
-        metavar: "USER_NAME"
-        type: "str" 
-        help: "The user name."
-        group: "a_group"
+A typical code snippet to create a program supports sub-commands using `argparse`:
 
-```
-
-Quite simple, right? (Not short, but really simple and straightforward. :P )
-
-### Simple codes
+(Snippet from "Sub-commands" section in https://docs.python.org/3/library/argparse.html)
 
 ```python
-from argcat import ArgCat
+# Create the top-level parser
+parser = argparse.ArgumentParser(prog='PROG')
+parser.add_argument('--foo', action='store_true', help='foo help')
+subparsers = parser.add_subparsers(help='sub-command help')
+
+# Create the parser for the "a" command
+parser_a = subparsers.add_parser('a', help='a help')
+parser_a.add_argument('bar', type=int, help='bar help')
+
+# Create the parser for the "b" command
+parser_b = subparsers.add_parser('b', help='b help')
+parser_b.add_argument('--baz', choices='XYZ', help='baz help')
+
+# Parse some argument lists
+parser.parse_args(['a', '12'])
+parser.parse_args(['--foo', 'b', '--baz', 'Z'])
+```
+
+#### But, using ArgCat:
+
+```python
 argcat = ArgCat()
-argcat.load("simple.yml") # Load the settings from the YAML file.
-argcat.parse_args() # Start to parse the args input.
+
+# Build parsers and arguments
+with argcat.build() as builder:
+    # Set descriptive information of the program
+    builder.set_prog_info(prog='PROG')
+    builder.set_subparsers_info(help='sub-command help')
+            
+    # Add an argument to the main parser
+    builder.main_parser().add_argument('--foo', action='store_true', help='foo help')
+            
+    # Create the parser for the "a" command
+    builder.add_subparser('a', help='a help')
+    builder.subparser('a').add_argument('bar', type=int, help='bar help')
+            
+    # Create the parser for the "b" command
+    builder.add_subparser('b', help='b help')
+    builder.subparser('b').add_argument('--baz', choices='XYZ', help='baz help')
+
+# Parse some argument lists
+argcat.parse_args(['a', '12'])
+argcat.parse_args(['--foo', 'b', '--baz', 'Z'])
 ```
 
-That's it!
+### Handle parsed result from `argparse`  directly and easily
 
-When `argcat.parse_args()` gets called, __ArgCat__ starts to process the input arguments like what `ArgumentParser.parse_args()` does. It sends the corresponding arguments received and parsed, and then passes into the _Handlers_ you defined in your codes. Speaking of _Handlers_:
+A typical code snippet to create a program supports sub-commands and handles the parsed result using `argparse`:
 
-### Handlers
-
-The _Handler_ is a function for handling arguments processed by __ArgCat__. It's place you really deal with the arguments.
-
-#### How to define a Handler
-
-There are two steps you need for defining __ArgCat__ _Handler_:
-
-1. Decorate the handler function with the `@ArgCat.handler` decorator and set the corresonding parser name. See a full example below:
-
-    ```python
-    #!/usr/bin/python
-
-    from argcat import ArgCat
-    import sys
-
-    class Foo:
-        def __init__(self):
-            self._value = "foo value."
-        
-        @property
-        def value(self):
-            return self._value
-
-        @value.setter
-        def value(self, new_value):
-            self._value = new_value
-        
-        # Regular class instance method
-        @ArgCat.handler("config") # Handle arguments for parser named "config"
-        def config_handler(self, name, user_name):
-            print("self._value = {}".format(self._value))
-            print("name = {}, user_name = {}".format(name, user_name))
-
-        # Static method of class
-        @staticmethod
-        @ArgCat.handler("init") # Handle arguments for parser named "init"
-        def init_handler():
-            print("init_handler")
-
-        # Class method
-        @classmethod
-        @ArgCat.handler("info") # Handle arguments for parser named "info"
-        def info_handler(cls, detail):
-            print("info_handler with detail: {}".format(detail))
-
-    # Regular function
-    @ArgCat.handler("main")
-    def main_handler(test):
-        print("main_handler {}".format(test))
-    ```
-
-    As you can see, there are four different kinds of functions of the class `Foo` decorated.
-
-2. Let __ArgCat__ know where to find the handlers by `ArgCat.add_handler_provider(provider: Any)`:
-
-    ```python
-    def main():
-        argcat = ArgCat(chatter=False)
-        argcat.load("hello_cat.yml")
-        foo = Foo()
-        foo.value = "new value"
-        # Set module __main__ as a handler provider
-        argcat.add_handler_provider(sys.modules['__main__'])
-        # Set Foo as a handler provider
-        argcat.add_handler_provider(foo)
-        argcat.print_parsers()
-        argcat.print_parser_handlers()
-        argcat.parse()
-        
-    if __name__ == '__main__':
-        main()
-    ```
-
-    When `ArgCat.add_handler_provider(provider: Any)` is called, ArgCat will try to find the decorated handlers from the providers. Note that the function `init_handler()` is in `__main__`, so the corresponding `provider` should be `sys.modules['__main__']` which returns the `__main__` scope.  
-
-To sum it up, there are four handlers in above example:
-
-- `init_handler()`: a `@staticmethod` method of the class for a parser named `init`
-- `info_handler()`: a `@classmethod` method of the class for a parser named `info`
-- `main_handler()`: a regular function for a parser named `main`
-- `config_handler()`:  a regular instance method of the class for a parser named `config`
-
-#### The requirement of Handler
-
-##### Parser name and function name
-
-The parser's name must be exactly the same as the one declared in the YAML file, but the handler function name can be arbitary.
-
-So, if you define a parser named init in the config file, 
-
-```YAML
-init: # This is a subparser without any argument but only a help tip.
-    help: "Initialize something."
-```
-
-then the decorated function must set the correct name `init`.
-
-```Python
-@ArgCat.handler("init") # Handle arguments for parser named "init"
-    def init_handler():
-      print("init_handler")
-```
-
-##### Function type
-
-If the method of the handler is `@staticmethod` or `@classmethod`, the decorations should be closest to the method like:
+(Snippet from "Sub-commands" section in https://docs.python.org/3/library/argparse.html)
 
 ```python
-# Class method
-@classmethod
-@ArgCat.handler("info")  # This decorator must be placed closest to the method.
-def info_handler(cls, detail):
-    print("info_handler with detail: {}".format(detail))
+# Sub-command functions
+def foo(args):
+    print(args.x * args.y)
+
+def bar(args):
+    print('((%s))' % args.z)
+
+# Create the top-level parser
+parser = argparse.ArgumentParser()
+subparsers = parser.add_subparsers()
+
+# Create the parser for the "foo" command
+parser_foo = subparsers.add_parser('foo')
+parser_foo.add_argument('-x', type=int, default=1)
+parser_foo.add_argument('y', type=float)
+parser_foo.set_defaults(func=foo)
+
+# Create the parser for the "bar" command
+parser_bar = subparsers.add_parser('bar')
+parser_bar.add_argument('z')
+parser_bar.set_defaults(func=bar)
+
+# Parse the args and call whatever function was selected
+args = parser.parse_args('foo 1 -x 2'.split())
+args.func(args)
+
+# Parse the args and call whatever function was selected
+args = parser.parse_args('bar XYZYX'.split())
+args.func(args)
 ```
 
-##### Signature
+#### Instead, using ArgCat:
 
-Handler's signature must match the parsed arguments. For instances, in the above codes, `config_handler()` has two parameters `name` and `user_name` except `self`. They exactly match what `config`'s declared arguments below. In other words, if `config` parser has only 2 arguments and their `dest` are `name` and `user_name`, the handler function must also have 2 parameters which must be `name` and `user_name`.
+```python
+# Sub-command handler functions.
+# Note that the parameters of the functions should be the dests of the arguments for 
+# the parsers. ArgCat helps you to route the argument's inputs from the parsed args into
+# the parsers' handler functions respectively.
+def foo(x, y):
+    print(x * y)
 
-```yaml
-arguments:
-      -
-        name_or_flags: ["-n", "--name"]
-        nargs: "?"
-        dest: "name" # NOTE THIS DEST
-        metavar: "NAME"
-        type: "str"
-        help: "The name."
-        group: "a_group"  
-      - 
-        name_or_flags: ["-u", "--username"]
-        nargs: "?"
-        dest: "user_name" # NOTE THIS DEST
-        metavar: "USER_NAME"
-        type: "str" 
-        help: "The user name."
-        group: "a_group"
+def bar(z):
+    print('((%s))' % z)
+
+argcat = ArgCat()
+with argcat.build() as builder:
+    # Create the parser for the "foo" command.
+    builder.add_subparser('foo')
+    builder.subparser('foo').add_argument('-x', type=int, default=1)
+    builder.subparser('foo').add_argument('y', type=float)
+
+    # Create the parser for the "bar" command.
+    builder.add_subparser('bar')
+    builder.subparser('bar').add_argument('z')
+
+# Set handler functions for receiving and processing parsed result.
+argcat.set_parser_handler('foo', foo)
+argcat.set_parser_handler('bar', bar)
+
+# Parse the args and the handler function `foo()` will be called with required 
+# parameters automatically.
+argcat.parse_args('foo 1 -x 2'.split())
+# Parse the args and the handler function `bar()` will be called with required 
+# parameters automatically.
+argcat.parse_args('bar XYZYX'.split())
 ```
 
-##### Underneath the surface
+#### And, if you would like to set all handler functions at once, using ArgCat:
 
-The parsed argument dict would be something like `{'name': '1', 'user_name': None}` for `config`'s case. And the handler function `config_handler()` will be called with key arguments given by `**theDict` , which means the function will be called like this: `config_handler(**theDict)`. As a result, if one of `config_handler()` parameters is `foo_user_name` instead of `user_name`, the handler would not be able to receive the parsed arguments and an error would be reported by __ArgCat__ like:
+```python
+# Sub-command handler functions, which are decorated for the respective parsers.
+@ArgCat.handler(parser_name='foo')
+def decorated_foo(x, y):
+    print(x * y)
+        
+@ArgCat.handler(parser_name='bar')
+def decorated_bar(z):
+    print('((%s))' % z)    
 
-```Python
-ERROR: Handling function Exception: "config_handler() got an unexpected keyword argument 'user_name'", with function sig: (name, foo_user_name) and received parameters: (name, user_name).
+argcat = ArgCat()
+with argcat.build() as builder:
+    # Create the parser for the "foo" command.
+    builder.add_subparser('foo')
+    builder.subparser('foo').add_argument('-x', type=int, default=1)
+    builder.subparser('foo').add_argument('y', type=float)
+
+    # Create the parser for the "bar" command.
+    builder.add_subparser('bar')
+    builder.subparser('bar').add_argument('z')
+
+# Set handler functions all at once from a handler provider
+# Supposed this code snippet is in a __main__ module, taking the module as the provider.
+# ArgCat will try to find all functions decorated by @ArgCat.handler() and set them as 
+# the the handlers for the parsers according to the `parser_name` set in the decorator
+# respectively.
+argcat.add_main_module_as_handler_provider()
+# The above function call is a convenient way for below:
+# argcat.add_handler_provider(sys.modules['__main__'])
+
+# Parse the args and the handler function `foo()` will be called with required 
+# parameters automatically.
+argcat.parse_args('foo 1 -x 2'.split())
+# Parse the args and the handler function `bar()` will be called with required 
+# parameters automatically.
+argcat.parse_args('bar XYZYX'.split())
 ```
 
-### Example
+#### A Few Further Explanations: (You may be curious about)
 
-There are files of two examples in this project.
+1. Handler Provider
 
-One includes two files: `hello_cat.py`, `hello_cat.yml`. The first one is a main file shows how to use __ArgCat__ and also contains the codes demonstrated in this README. And the latter one is the YAML config file. You can take them as reference, when you are using __ArgCat__.
+   - A handler provider can be any object owns any functions decorated by `@ArgCat.handler()` with a parameter as a parser name. 
 
-Another file named `hello_chore.py` shows the traditional way to use the ArgumentParser.
+   - When setting a handler provider, ArgCat tries to find all handler functions of the provider at first. Then it collects all the parsers of the specified names from the decorated functions. In the end, it tries to link the functions to each parser picked respectively. 
 
-If you encounter any issue or have any question please feel free to open an issue ticket or send me email.
+2. Handler Functions
 
-## In the end
+   - ArgCat supports all kinds of functions to be handler functions, such as instance methods, @staticmethod, @classmethod and the other callables. 
 
-Phew...
+   - When decorating a callable to be a handler function, please make sure to place `@ArgCat.handler()` in the nearest place to the function definition, like below:
 
-Ok. I think that's all for this README at this point for v0.2.1.
+   ```python
+   @classmethod
+   @ArgCat.handler(parser_name='foo')
+   def foo(cls):
+       ...
+   ```
 
-ArgCat is good, but not perfect. I will continue to improve it and update this documentation.
+   - A handler function's signature must match arguments' dests of its parsers. For example, if a parser has two arguments ['--x'] and ['-y'], its handler function should have a signature contains the exact two parameters: `(x, y)` . By contrast, the name of the function is arbitary. So, either `foo(x, y)` or `go(x, y)` can be the parser's handler function. 
 
-Hope you enjoy coding in Python.
-
-`~Peace & Love~`
+     **Note:** There is a scenario which you may need to be aware of. Supposed you have one argument ['verbose'] for the main parser and also have a ['--file'] argument for the subparser 'load'. Then the handler function for the subparser should be in a form as `foo(verbose, file)` instead of `foo(file)` . Becase the subparser's handler function will also take the arguments from the main parser by default, unless the argument added to the main handler is through `add_exlusive_argument()` . Nevertheless, don't panic. Both `set_parser_handler()` and `add_handler_provider()` will check the signature for you and let you know what is the correct one.
 
 ## License
 
 ```
 MIT License
 
-Copyright (c) 2021 Chunxi Xin
+Copyright (c) 2022 Chunxi Xin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
