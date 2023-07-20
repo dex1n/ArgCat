@@ -294,8 +294,9 @@ class _ArgCatBuilder:
             self._parser = parser
         
         def _add_argument(self, ignored_by_subparser: bool, *args: str, **kwargs: str) -> Dict:
-            new_argument = {} # An empty argument. 
-            new_argument[_ManifestConstants.NAME_OR_FLAGS] = args
+            new_argument = {} # An empty argument.
+            if args:
+                new_argument[_ManifestConstants.NAME_OR_FLAGS] = args
             new_argument[_ManifestConstants.IGNORED_BY_SUBPARSER] = ignored_by_subparser
             for k, v in kwargs.items():
                 new_argument[k] = v
