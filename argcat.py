@@ -9,7 +9,7 @@ from pydoc import locate
 from enum import Enum, unique
 from argparse import ArgumentParser, Namespace, _ArgumentGroup, _MutuallyExclusiveGroup, _SubParsersAction, Action
 from typing import ClassVar, List, Dict, Optional, Callable, Tuple, Any, Union
-
+import traceback
 
 # May not be the best solution for the constants, but it's fine for now.
 # And we don't need ClassVar[str] here because I think all constants' type are pretty clear.
@@ -582,9 +582,10 @@ class ArgCat:
             except Exception as exc:
                 func_sig = inspect.signature(parser.handler_func)
                 input_sig = str(tuple(parameters)).replace('\'','')
-                error_msg = "Handling function Exception: \"{}\", with function sig: {} and received parameters: {}."\
-                    .format(exc, func_sig, input_sig)
+                error_msg = "Handling function sig: `{}` and received parameters: `{}`.".format(func_sig, input_sig)
                 _ArgCatPrinter.print(error_msg, level=_ArgCatPrintLevel.ERROR, indent=1)
+                # v0.4.2-feat: Add Traceback for error details.
+                traceback.print_exc()
             else:
                 return result
         else:
@@ -612,8 +613,11 @@ class ArgCat:
             _ArgCatPrinter.print("Building DONE. Use print_xx functions for more information.")
         
         return _ArgCatBuilder(on_build_done)
-        
-    def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Dict:
+    
+    # v0.4.2-feat: subparser_ignore_main is added to deal with the case in which user would like to not trigger the main 
+    # parser's handler if any subparser handler is called. 
+    def parse_args(self, subparser_ignore_main: bool = False, args: Optional[List[str]]=None, 
+                   namespace: Optional[Namespace]=None) -> Dict:
         """Start to parse args.
 
         This method is pretty much the same as the original `parse_args()` of ArgumentParser, which means
@@ -632,8 +636,10 @@ class ArgCat:
         
         # The main parser's handler should be called for two cases: 
         # 1. no subparser called or 
-        # 2. subparser called but main parser has arguments.
-        if subparser_name is None or main_parser_parsed_arguments_dict:
+        # 2. subparser called but subparser_ignore_main is not true and main parser has arguments.
+        # v0.4.2-bug: Only if any element of main_parser_parsed_arguments_dict is not None, 
+        # main_parser_parsed_arguments_dict can be considered as not None.
+        if not subparser_name or (not subparser_ignore_main and any(main_parser_parsed_arguments_dict.values())):
             ret_result['main'] = self._call_parser_handler(parser=self._arg_parsers[_ManifestConstants.MAIN], 
                                                            parameters=main_parser_parsed_arguments_dict)
         
