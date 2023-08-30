@@ -17,7 +17,7 @@ pipeline {
         stage('CodeCheck') { 
             agent {
                 docker {
-                    image 'cytopia/pycodestyle:latest' 
+                    image 'cytopia/pylint:latest' 
                 }
             }
             steps {
