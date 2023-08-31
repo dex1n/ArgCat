@@ -1,6 +1,13 @@
 pipeline {
     agent none 
     stages {
+
+        environment { 
+                PYLINT_REPORT_DIR = '$(pwd)/py-lint-reports'
+                PYLINT_REPORT_FILE_NAME = 'index.html'
+                PYLINT_REPORT_NAME = 'Pylint Report'
+            }
+
         /*
         stage('Build') { 
             agent {
@@ -21,18 +28,21 @@ pipeline {
                 }
             }
             steps {
-                mkdir 'py-lint-reports'
-                sh 'pylint argcat.py --output py-lint-reports/index.html' 
+                sh 'pylint argcat.py --output ${PYLINT_REPORT_FILE_NAME}' 
                 //stash(name: 'pylint-result', includes: 'pylint-report.html')
+
+                dir(path: "${PYLINT_REPORT_DIR}") { 
+                    sh "mv ${PYLINT_REPORT_FILE_NAME} ${PYLINT_REPORT_DIR}" 
+                }
 
                 publishHTML(
                     [allowMissing: false, 
                     alwaysLinkToLastBuild: false, 
                     keepAll: false, 
-                    reportDir: 'py-lint-reports', 
-                    reportFiles: 'index.html', 
-                    reportName: 'Pylint Report', 
-                    reportTitles: 'Pylint Report', 
+                    reportDir: ${PYLINT_REPORT_DIR}, 
+                    reportFiles: ${PYLINT_REPORT_FILE_NAME}, 
+                    reportName: ${PYLINT_REPORT_NAME}, 
+                    reportTitles: ${PYLINT_REPORT_NAME}, 
                     useWrapperFileDirectly: true]
                     )      
 
