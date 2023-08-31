@@ -2,12 +2,6 @@ pipeline {
     agent none 
     stages {
 
-        environment { 
-                PYLINT_REPORT_DIR = '$(pwd)/py-lint-reports'
-                PYLINT_REPORT_FILE_NAME = 'index.html'
-                PYLINT_REPORT_NAME = 'Pylint Report'
-            }
-
         /*
         stage('Build') { 
             agent {
@@ -21,12 +15,21 @@ pipeline {
             }
         }
         */
+
         stage('CodeCheck') { 
+
+            environment { 
+                PYLINT_REPORT_DIR = '$(pwd)/py-lint-reports'
+                PYLINT_REPORT_FILE_NAME = 'index.html'
+                PYLINT_REPORT_NAME = 'Pylint Report'
+            }
+
             agent {
                 docker {
                     image 'cytopia/pylint:latest' 
                 }
             }
+
             steps {
                 sh 'pylint argcat.py --output ${PYLINT_REPORT_FILE_NAME}' 
                 //stash(name: 'pylint-result', includes: 'pylint-report.html')
