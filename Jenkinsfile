@@ -31,7 +31,7 @@ pipeline {
                 sh 'pylint argcat.py --output ${PYLINT_REPORT_FILE_NAME}' 
                 //stash(name: 'pylint-result', includes: 'pylint-report.html')
 
-                dir(path: "${PYLINT_REPORT_DIR}") { 
+                dir(path: PYLINT_REPORT_DIR) { 
                     sh "mv ${PYLINT_REPORT_FILE_NAME} ${PYLINT_REPORT_DIR}" 
                 }
 
@@ -39,13 +39,12 @@ pipeline {
                     [allowMissing: false, 
                     alwaysLinkToLastBuild: false, 
                     keepAll: false, 
-                    reportDir: ${PYLINT_REPORT_DIR}, 
-                    reportFiles: ${PYLINT_REPORT_FILE_NAME}, 
-                    reportName: ${PYLINT_REPORT_NAME}, 
-                    reportTitles: ${PYLINT_REPORT_NAME}, 
+                    reportDir: PYLINT_REPORT_DIR, 
+                    reportFiles: PYLINT_REPORT_FILE_NAME, 
+                    reportName: PYLINT_REPORT_NAME, 
+                    reportTitles: PYLINT_REPORT_NAME, 
                     useWrapperFileDirectly: true]
                     )      
-
             }
         }
 
