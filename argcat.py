@@ -1,3 +1,4 @@
+"""ArgCat"""
 #!/usr/bin/env python3
 
 import argparse
@@ -7,13 +8,15 @@ import functools
 from copy import deepcopy
 from pydoc import locate
 from enum import Enum, unique
-from argparse import ArgumentParser, Namespace, _ArgumentGroup, _MutuallyExclusiveGroup, _SubParsersAction, Action
+from argparse import (ArgumentParser, Namespace, _ArgumentGroup, _MutuallyExclusiveGroup,
+                      _SubParsersAction, Action)
 from typing import ClassVar, List, Dict, Optional, Callable, Tuple, Any, Union
 import traceback
 
 # May not be the best solution for the constants, but it's fine for now.
 # And we don't need ClassVar[str] here because I think all constants' type are pretty clear.
-class _ManifestConstants:
+@unique
+class _ManifestConstants(Enum):
     META = "meta"
     METAVAR = "metavar"
     PROG = "prog"
@@ -25,12 +28,10 @@ class _ManifestConstants:
     SUBPARSER = 'subparser'
     PARSERS = 'parsers'
     DEST = 'dest'
-    META = 'meta'
     ARGUMENTS = 'arguments'
     ARGUMENT_GROUPS = 'argument_groups'
     MAIN = 'main'
     IS_MUTUALLY_EXCLUSIVE = 'is_mutually_exclusive'
-    DESCRIPTION = 'description'
     NAME_OR_FLAGS = 'name_or_flags'
     TYPE = 'type'
     GROUP = 'group'
@@ -40,37 +41,30 @@ class _ManifestConstants:
     ACTION = 'action'
     CHOICES = 'choices'
     CONST = 'const'
-    HELP = 'help'
-    # Mainly used for main arguments. If this is set to True, the argument will be filtered out before being passed
-    # into subparser's handler. Default value is False.
+    # Mainly used for main arguments. If this is set to True, the argument will be filtered out 
+    # before being passed into subparser's handler. Default value is False.
     IGNORED_BY_SUBPARSER = 'ignored_by_subparser'
-    DEFAULT_HANDLER = 'default_handler'   
+    DEFAULT_HANDLER = 'default_handler'
 
-
-# Default manifest
-class _ARGUMENT_DEFAULTS_:
+# Argument values by Default
+_ARGUMENT_DEFAULTS_ = {
     # NOTE : REMEMBER TO USE DEEP COPY WHEN SETTING THIS DICT AS A DEFAULT DICT
-    META = {
-        _ManifestConstants.PROG: "ArgCat GO~",
-        _ManifestConstants.DESCRIPTION: "It's sooo freeesh~",
-        # In build mode, we don't use these by default to make the help texts clean.
-        # ManifestConstants.SUBPARSER: {
-        #     ManifestConstants.TITLE: "The subparsers title",
-        #     ManifestConstants.DESCRIPTION: "The subparsers description",
-        #     ManifestConstants.HELP: "The subparsers help"
-        # }
-    }
-    NARGS = "?"
-    TYPE = "str"
-    DEST = "dest"
-    HELP = ""
-    METAVAR = "metavar"
+    'META' : {
+        _ManifestConstants.PROG: "ArgCat Go~",
+        _ManifestConstants.DESCRIPTION: "It's sooo cuuuute~",
+    },
+    'NARGS' : "?",
+    'TYPE' : "str",
+    'DEST' : "dest",
+    'HELP' : "",
+    'METAVAR' : "metavar",
     # NOTE : REMEMBER TO USE DEEP COPY WHEN SETTING THIS DICT AS A DEFAULT DICT
-    PARSERS = {
+    'PARSERS' : {
         # There is a `main` parser by default
         _ManifestConstants.MAIN: { _ManifestConstants.ARGUMENTS: [] }
     }
-    
+}
+
 @unique
 class _ArgCatPrintLevel(Enum):
     # Print needed by user, for example, in print_parser_handlers()
@@ -79,20 +73,30 @@ class _ArgCatPrintLevel(Enum):
     WARNING = 2
     ERROR = 3
     def __str__(self):
-        if self.value in [0, 1]:
-            return "[ LOG ]: "
-        elif self.value == 2:
+        if self.value == 2:
             return "[ *WARNING* ]: "
-        elif self.value == 3:
+        if self.value == 3:
             return "[ #ERROR# ]: "
+        #if self.value in [0, 1]:
+        return "[ LOG ]: "
 
 class _ArgCatPrinter:
     filter_level: ClassVar[_ArgCatPrintLevel] = _ArgCatPrintLevel.VERBOSE
     log_prefix: ClassVar[str] = "<ArgCat>"
     indent_blank_str: ClassVar[str] = " " * 2
-    
+
     @classmethod
-    def print(cls, msg: str, *, level: _ArgCatPrintLevel = _ArgCatPrintLevel.VERBOSE, indent: int = 0) -> None:
+    def print(cls, msg: str, *, level: _ArgCatPrintLevel = _ArgCatPrintLevel.VERBOSE,
+              indent: int = 0) -> None:
+        """Print logs with a certain log level and indent
+        
+        `msg` is the log message to print. And `level` decides whether this message should be 
+        displayed with the current filter level. Any level under the current filter level will be 
+        filtered out and cannot be shown. `indent` is a way to layout the message in a more 
+        structural style. 
+        
+        Returns None.
+        """
         if level.value < cls.filter_level.value:
             return
         level_str: str = str(level)
@@ -104,6 +108,17 @@ class _ArgCatPrinter:
         final_msg: str = indent_str + level_str + msg
         print(final_msg)
 
+    @classmethod
+    def set_filter_level(cls, filter_level: _ArgCatPrintLevel) -> None:
+        """Set the filter level.
+        
+        This filter level determine whether a log message with a level can be displayed. Any message
+        with a level under this filter level would not be shown.
+        
+        Returns None.
+        """
+        cls.filter_level = filter_level
+
 class _ArgCatParser:
     _parser: ArgumentParser
     _name: str
@@ -112,87 +127,134 @@ class _ArgCatParser:
     _groups: Optional[Dict]
     _handler_func: Optional[Callable]
     _additional_argument_info: Optional[dict]
-    
-    def __init__(self, parser: ArgumentParser, name: str, arguments: List[Action], additional_arguments_info: Dict, 
-                 groups: Optional[Dict] = None, handler_func: Optional[Callable] = None):
+
+    def __init__(self, parser: ArgumentParser, name: str, arguments: List[Action],
+                 additional_arguments_info: Dict,groups: Optional[Dict] = None,
+                 handler_func: Optional[Callable] = None):
         self._parser = parser
         self._name = name
         self._arguments = arguments
         self._dests = [arg.dest for arg in arguments]
         self._groups = groups
         self._handler_func = handler_func
-        
-        # {argument.dest: {_ManifestConstants.IGNORED_BY_SUBPARSER: None, _ManifestConstants.GROUP: None}}
+
         self._additional_argument_info = additional_arguments_info
-    
+
     @property
     def name(self) -> str:
+        """Get the name of ArgCatParser.
+        
+        This name may be 'main' for the main parser or other string for the sub parser.
+        
+        Return str.
+        """
         return self._name
 
     @property
     def arguments(self) -> List[Action]:
+        """Get all the arguments of ArgCatParser.
+        
+        The return value is a list of all created arguments(Action).
+        """
         return self._arguments
 
     @property
     def dests(self) -> List[str]:
+        """Get all the dests of ArgCatParser
+        
+        Return a list of dest names which could be the most important values of this parser.
+        """
         return self._dests
-    
+
     @property
     def handler_func(self) -> Optional[Callable]:
+        """Get the argument handler function of ArgCatParser"""
         return self._handler_func
-    
+
     @handler_func.setter
-    def handler_func(self, value: Optional[Callable]) -> None:         
+    def handler_func(self, value: Optional[Callable]) -> None:
+        """Set the argument handler function of ArgCatParser"""
         self._handler_func = value
 
     @property
     def groups(self) -> Optional[Dict]:
+        """Get the argument groups of ArgCatParser.
+        
+        The return dict has a key of the group name and the value of the create argument group.    
+        """
         return self._groups
 
     @property
     def parser(self) -> ArgumentParser:
+        """Get the inner ArgumentParser of ArgCatParser
+        
+        This is the actual argument parser for the parse work. ArgCat provides addtional service on
+        it.
+        """
         return self._parser
-    
+
     @property
     def additional_arguments_info(self) -> Dict:
+        """Get the additional arguments info of ArgCatParser
+        
+        The return value is a dict which records every dest and its group and ignored_by_main info.
+        
+        return Dict.
+        """
         return self._additional_argument_info
-    
-    def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None) -> Tuple[str, Dict, Dict]:
+
+    def parse_args(self, args: Optional[List[str]]=None, 
+                   namespace: Optional[Namespace]=None) -> Tuple[str, Dict, Dict]:
+        """Parse the input arguments.
+        
+        This function has the same parameters as the ArgumentParser's. But it does more things:
+        1. It calls it's parser(ArgumentParser)'s parse_args() to parse the input arguments, taking 
+        the parser as the main parse;
+        2. It seperate parsed argument for the subparser and the main parser into two different 
+        dict;
+        3. Remove all parsed arguments marked as ingored_by_subparser from the subparser's 
+        parsed arguments dict generated in the previous step.
+        
+        Return a Tuple with values: \n
+        (The subparser name if any subparser is called, a parsed argument dict for the subparser,
+        a parsed argument dict for the current parser)
+        """
         # Call the main parser's parse_args() to parse the arguments input.
         parsed_args: Namespace = self._parser.parse_args(args=args, namespace=namespace)
-        _ArgCatPrinter.print("Parsed args result: `{}`.".format(parsed_args))
+        _ArgCatPrinter.print(f"Parsed args result: `{parsed_args}`.")
         parsed_arguments_dict: Dict = dict(vars(parsed_args))
         subparser_name: str = parsed_arguments_dict.get(_ManifestConstants.SUBPARSER_NAME, None)
-        
+
         # ManifestConstants.SUBPARSER_NAME is not needed for the handlers.
         # So, delete it from the argument dict if it exists.
         if _ManifestConstants.SUBPARSER_NAME in parsed_arguments_dict:
             del parsed_arguments_dict[_ManifestConstants.SUBPARSER_NAME]
-        
+
         parsed_arguments_dict_for_cur_parser = {}
         # Firstly, pick all arguments parsed of the current parser.
-        for k, v in parsed_arguments_dict.items():
-            if k in self._dests:
-                parsed_arguments_dict_for_cur_parser[k] = v
-        
-        # If the subparser is needed, remove all arguments from the 
-        # namspace belong to the main parser(parent parser) marked IGNORED_BY_SUBPARSER True. 
-        # By default, all main parser's arguments will
-        # stored in the args namespace even there is no the main arguments 
-        # input. So, this step is to make sure the arguments input
-        # into the handler correctly.
+        for key, value in parsed_arguments_dict.items():
+            if key in self._dests:
+                parsed_arguments_dict_for_cur_parser[key] = value
+
+        # If the subparser is needed, remove all arguments from the
+        # namspace belong to the main parser(parent parser) marked IGNORED_BY_SUBPARSER True.
+        # By default, all main parser's arguments will stored in the args namespace even there is no
+        # the main arguments input. 
+        # So, this step is to make sure the arguments input into the handler correctly.
         if subparser_name:
             for argument in self._arguments:
                 # 'dest' value is the key of the argument in the parsed_arguments_dict.
                 dest: str = argument.dest
                 should_be_ignored: bool = \
-                self._additional_argument_info[dest].get(_ManifestConstants.IGNORED_BY_SUBPARSER, True)
+                self._additional_argument_info[dest].get(_ManifestConstants.IGNORED_BY_SUBPARSER, 
+                                                         True)
                 # Remove the argument by key in the parsed_arguments_dict.
                 if dest is not None and should_be_ignored:
                     del parsed_arguments_dict[dest]
         else:
-            parsed_arguments_dict = None    # If subparser_name is None, clear this make sure it cannot be used.
-        
+            # If subparser_name is None, clear this make sure it cannot be used.
+            parsed_arguments_dict = None    
+
         # parsed_arguments_dict now is a dict contains arguments only for the subparser.
         return subparser_name, parsed_arguments_dict, parsed_arguments_dict_for_cur_parser
 
@@ -211,8 +273,8 @@ class _ArgCatBuilder:
         # Init data with default values.
         # NOTE: DEEP COPY IS A MUST! Otherwise, all _manifest_data of _ArgCatBuilder instances will have and operate on
         # the same META and PARSERS dict, which is a epic serious bug.
-        self._manifest_data[_ManifestConstants.META] = deepcopy(_ARGUMENT_DEFAULTS_.META)
-        self._manifest_data[_ManifestConstants.PARSERS] = deepcopy(_ARGUMENT_DEFAULTS_.PARSERS)
+        self._manifest_data[_ManifestConstants.META] = deepcopy(_ARGUMENT_DEFAULTS_["META"])
+        self._manifest_data[_ManifestConstants.PARSERS] = deepcopy(_ARGUMENT_DEFAULTS_["PARSERS"])
         
         return self
     
@@ -504,8 +566,8 @@ class ArgCat:
             # Add arguments into this new parser
             parser_arguments_list = parser_dict.get(_ManifestConstants.ARGUMENTS, [])   # might be None
             added_arguments = []  # For collecting added arguments
-            # Collect addtional argument information which cannot be provided by created argument instance, which is 
-            # just a Action object.
+            # Collect addtional argument information which cannot be provided by created argument
+            # instance, which is just a Action object.
             additional_arguments_info = {}
             for argument_dict in parser_arguments_list:
                 name_or_flags: Optional[List] = argument_dict.get(_ManifestConstants.NAME_OR_FLAGS, None)
@@ -539,12 +601,12 @@ class ArgCat:
                     added_arg = object_to_add_argument.add_argument(**argument_meta_dict)
                 
                 added_arguments.append(added_arg) # Collect and later save them into _ArgCatParser()
-                new_additional_argument_info = {} 
+                new_additional_argument_info = {}
                 if object_to_add_argument is not new_parser:
                     new_additional_argument_info[_ManifestConstants.GROUP] = argument_group_name
                 new_additional_argument_info[_ManifestConstants.IGNORED_BY_SUBPARSER] = ignored_by_subparser
                 additional_arguments_info[added_arg.dest] = new_additional_argument_info
-            # Add a new ArgCatPartser with None handler_func    
+            # Add a new ArgCatPartser with None handler_func
             self._arg_parsers[parser_name] = _ArgCatParser(parser=new_parser, name=parser_name,
                                                            arguments=added_arguments,
                                                            additional_arguments_info=additional_arguments_info,
