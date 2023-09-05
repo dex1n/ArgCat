@@ -15,8 +15,8 @@ import traceback
 
 # May not be the best solution for the constants, but it's fine for now.
 # And we don't need ClassVar[str] here because I think all constants' type are pretty clear.
-@unique
-class _ManifestConstants(Enum):
+# pylint: disable=too-few-public-methods
+class _ManifestConstants:
     META = "meta"
     METAVAR = "metavar"
     PROG = "prog"
