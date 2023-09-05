@@ -216,6 +216,6 @@ class TestHandler(ArgCatUnitTest):
         # add handler for a not existed sub parser
         def a_handler(one, two) -> str:
             return 'Listen to me~'
-        self.assertEqual(self._argcat.set_parser_handler(parser_name='foo',
+        self.assertEqual(self._argcat.set_parser_handler(parser_name='invalid',
                                                          handler=a_handler), False,
-                         "Parser handler for a not existed `foo` parser should not be set!")
+                         "Parser handler for a not existed `test` parser should not be set!")
