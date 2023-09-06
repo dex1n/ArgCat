@@ -56,11 +56,12 @@ pipeline {
         stage('Test') { 
             agent {
                 docker {
-                    image 'qnib/pytest' 
+                    image 'python:3.11.4-alpine3.18' 
                 }
             }
             steps {
-                sh 'py.test --junit-xml test-reports/results.xml unitests' 
+                sh 'pip install pytest'
+                sh 'python -m pytest --junit-xml test-reports/results.xml unitests' 
             }
             post {
                 always {
