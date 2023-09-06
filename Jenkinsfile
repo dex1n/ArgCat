@@ -60,7 +60,7 @@ pipeline {
                 }
             }
             steps {
-                sh 'py.test --junit-xml test-reports/results.xml unittests' 
+                sh 'py.test --junit-xml test-reports/results.xml unitests' 
             }
             post {
                 always {
