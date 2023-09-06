@@ -16,6 +16,7 @@ pipeline {
         }
         */
 
+        /*
         stage('CodeCheck') { 
 
             environment { 
@@ -50,8 +51,8 @@ pipeline {
                     )      
             }
         }
+        */
 
-        /*
         stage('Test') { 
             agent {
                 docker {
@@ -59,7 +60,7 @@ pipeline {
                 }
             }
             steps {
-                sh 'py.test --junit-xml test-reports/results.xml sources/test_calc.py' 
+                sh 'py.test --junit-xml test-reports/results.xml unittests' 
             }
             post {
                 always {
@@ -67,7 +68,7 @@ pipeline {
                 }
             }
         }
-        */
+
         /*
         stage('Deliver') { 
             agent any
