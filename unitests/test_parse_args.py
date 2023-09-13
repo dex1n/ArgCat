@@ -62,11 +62,11 @@ class TestParseArgs(ArgCatUnitTest):
 
         self._argcat.add_handler_provider(DifferentKindsOfHandlerProvider())
         # 'test' is the positional argument for 'main'.
-        init_result = self._argcat.parse_args(args=['test', 'init'])
+        init_result = self._argcat.parse_args(['test', 'init'])
         self.assertEqual(init_result, {'main': {'test': 'test'}, 'init': 'init'},
                          "Incorrect result for 'init' parser")
 
-        info_result = self._argcat.parse_args(args=['test', 'info', 'this'])
+        info_result = self._argcat.parse_args(['test', 'info', 'this'])
         self.assertEqual(info_result, {'main': {'test': 'test'}, 'info': 'info this'},
                          "Incorrect result for 'info' parser")
 
@@ -75,7 +75,7 @@ class TestParseArgs(ArgCatUnitTest):
         # config_result = self._argcat.parse_args(['test', 'config', '--name', 'cool_name',
         # '--username', 'cool_user_name'])
 
-        config_result = self._argcat.parse_args(args=['test', 'config', '--name', 'cool_name'])
+        config_result = self._argcat.parse_args(['test', 'config', '--name', 'cool_name'])
         self.assertEqual(config_result,
                          {'main': {'test': 'test'},
                           'config': 'config name = cool_name, user_name = None'},
@@ -114,7 +114,7 @@ class TestParseArgs(ArgCatUnitTest):
         # want any argument we don't want. In the real world, I guess we also need to set it up
         # if we really need a specific argument like an empty one to pevent any accidental input
         # from the command line.
-        parsed = self._argcat.parse_args(args=['False'])
+        parsed = self._argcat.parse_args(['False'])
         self.assertEqual(parsed,
                          {'main':
                              {'debug': False,
@@ -124,7 +124,7 @@ class TestParseArgs(ArgCatUnitTest):
                          "Failed to parse no args input with the default main handler.")
 
         # Test normal parse with args for main parser and the default main handler
-        parsed = self._argcat.parse_args(args=['-v', '-d', 'False'])
+        parsed = self._argcat.parse_args(['-v', '-d', 'False'])
 
         self.assertEqual(parsed,
                          {'main':
@@ -136,7 +136,7 @@ class TestParseArgs(ArgCatUnitTest):
                          "Failed to parse main parser's args with the default main handler.")
 
         # Test normal parse with args for main parser and sub parser, and the default main handler
-        parsed = self._argcat.parse_args(args=['-v', 'True', 'process', '-f', 'a_code_file.py'])
+        parsed = self._argcat.parse_args(['-v', 'True', 'process', '-f', 'a_code_file.py'])
 
         self.assertEqual(parsed,
                          {'main':
@@ -153,7 +153,7 @@ class TestParseArgs(ArgCatUnitTest):
 
         self._argcat.set_parser_handler(parser_name='main', handler=main_handler)
 
-        parsed = self._argcat.parse_args(args=['-v', '-d', 'False'])
+        parsed = self._argcat.parse_args(['-v', '-d', 'False'])
 
         self.assertEqual(parsed,
                          {'main': "main_handler => first: False, verbose: True, debug: True."},
@@ -165,7 +165,7 @@ class TestParseArgs(ArgCatUnitTest):
 
         self._argcat.set_parser_handler(parser_name='process', handler=process_handler)
 
-        parsed = self._argcat.parse_args(args=['-v', '-d', 'False'])
+        parsed = self._argcat.parse_args(['-v', '-d', 'False'])
 
         self.assertEqual(parsed,
                          {'main': "main_handler => first: False, verbose: True, debug: True."},
@@ -174,7 +174,7 @@ class TestParseArgs(ArgCatUnitTest):
 
         # Test custom main handler and process handler with args input for both main parser and
         # subparser
-        parsed = self._argcat.parse_args(args=['-v', 'True', 'process', '--file', 'foo.py'])
+        parsed = self._argcat.parse_args(['-v', 'True', 'process', '--file', 'foo.py'])
 
         self.assertEqual(parsed,
                          {'main': 'main_handler => first: True, verbose: True, debug: False.',
