@@ -56,7 +56,8 @@ pipeline {
         stage('Test') { 
             agent {
                 docker {
-                    image 'python:3.11.4-alpine3.18' args '-u root'
+                    image 'python:3.11.4-alpine3.18' 
+                    args '-u root:root'
                 }
             }
             steps {
