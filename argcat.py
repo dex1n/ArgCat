@@ -721,8 +721,8 @@ class ArgCat:
 
     # v0.4.2-feat: subparser_ignore_main is added to deal with the case in which user would like to
     # not trigger the main parser's handler if any subparser handler is called.
-    def parse_args(self, subparser_ignore_main: bool = False, args: Optional[List[str]]=None,
-                   namespace: Optional[Namespace]=None) -> Dict:
+    def parse_args(self, args: Optional[List[str]]=None, namespace: Optional[Namespace]=None,
+                   subparser_ignore_main: bool = False) -> Dict:
         """Start to parse args.
 
         This method is pretty much the same as the original `parse_args()` of ArgumentParser, which
