@@ -1,5 +1,10 @@
 # ArgCat - A cute helper for argparse in Python 3
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![linting: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/pylint-dev/pylint)
+![Static Badge](https://img.shields.io/badge/PyTest_Coverage-100%25-green)
+![Static Badge](https://img.shields.io/badge/PyPI-0.4.3-blue)
+
 **ArgCat** is a tiny tool designed to make it more joyful to use `argparse` module in Python 3.
 
 As a bridge between developer and `argparse` module, it wraps `argparse`  and tries to take on all the "dirty works" for you, improving both the ''building" and "handling" parts of an `argparse` process, allowing you to focus more on business logic without worring about creating and configuring parsers and arguments of `argparse` in command-line interfaces.
