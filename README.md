@@ -1,5 +1,10 @@
 # ArgCat - A cute helper for argparse in Python 3
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![linting: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/pylint-dev/pylint)
+![Static Badge](https://img.shields.io/badge/PyTest_Coverage-100%25-green)
+![Static Badge](https://img.shields.io/badge/PyPI-0.4.3-blue)
+
 **ArgCat** is a tiny tool designed to make it more joyful to use `argparse` module in Python 3.
 
 As a bridge between developer and `argparse` module, it wraps `argparse`  and tries to take on all the "dirty works" for you, improving both the ''building" and "handling" parts of an `argparse` process, allowing you to focus more on business logic without worring about creating and configuring parsers and arguments of `argparse` in command-line interfaces.
@@ -18,7 +23,7 @@ Once installation done, you should get a **v0.4.x** version in your python packa
 
 A typical code snippet to create a program supports sub-commands using `argparse`:
 
-(Snippet from "Sub-commands" section in https://docs.python.org/3/library/argparse.html)
+(Snippet from "Sub-commands" section in [argparse](https://docs.python.org/3/library/argparse.html))
 
 ```python
 # Create the top-level parser
@@ -39,7 +44,7 @@ parser.parse_args(['a', '12'])
 parser.parse_args(['--foo', 'b', '--baz', 'Z'])
 ```
 
-#### But, using ArgCat:
+#### But, using ArgCat
 
 ```python
 argcat = ArgCat()
@@ -70,7 +75,7 @@ argcat.parse_args(['--foo', 'b', '--baz', 'Z'])
 
 A typical code snippet to create a program supports sub-commands and handles the parsed result using `argparse`:
 
-(Snippet from "Sub-commands" section in https://docs.python.org/3/library/argparse.html)
+(Snippet from "Sub-commands" section in [argparse](https://docs.python.org/3/library/argparse.html))
 
 ```python
 # Sub-command functions
@@ -104,7 +109,7 @@ args = parser.parse_args('bar XYZYX'.split())
 args.func(args)
 ```
 
-#### Instead, using ArgCat:
+#### Instead, using ArgCat
 
 ```python
 # Sub-command handler functions.
@@ -140,7 +145,7 @@ argcat.parse_args('foo 1 -x 2'.split())
 argcat.parse_args('bar XYZYX'.split())
 ```
 
-#### And, if you would like to set all handler functions at once, using ArgCat:
+#### And, if you would like to set all handler functions at once, using ArgCat
 
 ```python
 # Sub-command handler functions, which are decorated for the respective parsers.
@@ -184,13 +189,13 @@ argcat.parse_args('bar XYZYX'.split())
 
 1. Handler Provider
 
-   - A handler provider can be any object owns any functions decorated by `@ArgCat.handler()` with a parameter as a parser name. 
+   - A handler provider can be any object owns any functions decorated by `@ArgCat.handler()` with a parameter as a parser name.
 
-   - When setting a handler provider, ArgCat tries to find all handler functions of the provider at first. Then it collects all the parsers of the specified names from the decorated functions. In the end, it tries to link the functions to each parser picked respectively. 
+   - When setting a handler provider, ArgCat tries to find all handler functions of the provider at first. Then it collects all the parsers of the specified names from the decorated functions. In the end, it tries to link the functions to each parser picked respectively.
 
 2. Handler Functions
 
-   - ArgCat supports all kinds of functions to be handler functions, such as instance methods, @staticmethod, @classmethod and the other callables. 
+   - ArgCat supports all kinds of functions to be handler functions, such as instance methods, @staticmethod, @classmethod and the other callables.
 
    - When decorating a callable to be a handler function, please make sure to place `@ArgCat.handler()` in the nearest place to the function definition, like below:
 
@@ -201,32 +206,10 @@ argcat.parse_args('bar XYZYX'.split())
        ...
    ```
 
-   - A handler function's signature must match arguments' dests of its parsers. For example, if a parser has two arguments ['--x'] and ['-y'], its handler function should have a signature contains the exact two parameters: `(x, y)` . By contrast, the name of the function is arbitary. So, either `foo(x, y)` or `go(x, y)` can be the parser's handler function. 
+   - A handler function's signature must match arguments' dests of its parsers. For example, if a parser has two arguments ['--x'] and ['-y'], its handler function should have a signature contains the exact two parameters: `(x, y)` . By contrast, the name of the function is arbitary. So, either `foo(x, y)` or `go(x, y)` can be the parser's handler function.
 
      **Note:** There is a scenario which you may need to be aware of. Supposed you have one argument ['verbose'] for the main parser and also have a ['--file'] argument for the subparser 'load'. Then the handler function for the subparser should be in a form as `foo(verbose, file)` instead of `foo(file)` . Becase the subparser's handler function will also take the arguments from the main parser by default, unless the argument added to the main handler is through `add_exlusive_argument()` . Nevertheless, don't panic. Both `set_parser_handler()` and `add_handler_provider()` will check the signature for you and let you know what is the correct one.
 
 ## License
 
-```
-MIT License
-
-Copyright (c) 2022 Chunxi Xin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+[MIT License](https://github.com/dex1n/ArgCat/blob/main/LICENSE)
