@@ -1,13 +1,19 @@
+#!/usr/bin/python
+"""
+Example codes for building an ArgumentParser using Argcat.build() and setting handler parsers by
+set_handler_parser().
+"""
 from argcat import ArgCat
 
 def main():
-    
-    # sub-command handler functions
-    def foo(x, y):
+    """
+    Main func
+    """
+    def foo_handler(x, y):
         print(x * y)
 
-    def bar(z):
-        print('((%s))' % z)
+    def bar_handler(z):
+        print(f'(({z}))')
 
     argcat = ArgCat()
 
@@ -21,9 +27,9 @@ def main():
         builder.add_subparser('bar')
         builder.subparser('bar').add_argument('z')
 
-    argcat.set_parser_handler('foo', foo)
-    argcat.set_parser_handler('bar', bar)
-    
+    argcat.set_parser_handler('foo', foo_handler)
+    argcat.set_parser_handler('bar', bar_handler)
+
     # parse the args and call whatever function was selected
     argcat.parse_args('foo 1 -x 2'.split())
     # parse the args and call whatever function was selected
