@@ -1,3 +1,9 @@
 *.pyc
 .pytest_cache
 __pycache__
+
+package/dist
+package/src
+package/tests
+package/LICENSE
+package/README.md
